@@ -1,0 +1,3403 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GALAXY ADVENTURE – Petualangan Ular Tangga Antariksa 3D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    :root {
+      --neon-blue: #00f0ff;
+      --neon-purple: #b829ff;
+      --neon-gold: #ffd700;
+      --neon-green: #00ff88;
+      --neon-pink: #ff2a85;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050514;
+      font-family: 'Fredoka', sans-serif;
+      color: #ffffff;
+    }
+
+    .font-orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    #webgl-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Sci-fi Glassmorphism Panels */
+    .cosmic-panel {
+      background: linear-gradient(145deg, rgba(14, 21, 58, 0.88), rgba(7, 10, 32, 0.92));
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1);
+    }
+
+    .cosmic-panel-gold {
+      background: linear-gradient(145deg, rgba(28, 22, 52, 0.92), rgba(12, 9, 28, 0.95));
+      backdrop-filter: blur(14px);
+      border: 2px solid rgba(255, 215, 0, 0.65);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75), 0 0 25px rgba(255, 215, 0, 0.3);
+    }
+
+    /* Buttons */
+    .btn-cosmic {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .btn-cosmic:hover:not(:disabled) {
+      transform: translateY(-3px) scale(1.03);
+      filter: brightness(1.12);
+    }
+    .btn-cosmic:active:not(:disabled) {
+      transform: translateY(1px) scale(0.97);
+    }
+    .btn-cosmic:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.4);
+    }
+
+    /* 3D Physical Card Stack & Flip Styling */
+    .deck-perspective {
+      perspective: 1200px;
+    }
+
+    .card-stack-layer {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1e1b4b, #311042, #0f172a);
+      border: 2px solid #ffd700;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+      transition: transform 0.3s ease;
+    }
+
+    @keyframes shuffleCardLeft {
+      0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+      50% { transform: translate3d(-32px, -10px, 20px) rotate(-14deg); }
+    }
+    @keyframes shuffleCardRight {
+      0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+      50% { transform: translate3d(32px, -8px, 10px) rotate(14deg); }
+    }
+
+    .shuffling .layer-1 { animation: shuffleCardLeft 0.25s ease-in-out 2; }
+    .shuffling .layer-2 { animation: shuffleCardRight 0.25s ease-in-out 2 0.06s; }
+    .shuffling .layer-3 { animation: shuffleCardLeft 0.25s ease-in-out 2 0.12s; }
+
+    /* Big 3D Drawn Card */
+    .drawn-card-container {
+      perspective: 1500px;
+    }
+    .drawn-card-inner {
+      width: 260px;
+      height: 365px;
+      position: relative;
+      transform: translateY(0) scale(1) rotateY(0deg);
+      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #1a1438 0%, #0d132e 55%, #070a1c 100%);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 30px rgba(255, 215, 0, 0.45);
+      transform: rotateY(0deg);
+    }
+
+    /* Hologram Scanlines */
+    .hologram-box {
+      position: relative;
+      overflow: hidden;
+    }
+    .hologram-box::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 240, 255, 0.06) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 15, 35, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.5);
+      border-radius: 9999px;
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float {
+      animation: floatSlow 3.2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 0 0 30px rgba(0, 240, 255, 0.3); }
+      50% { box-shadow: 0 0 28px rgba(255, 215, 0, 0.95), 0 0 55px rgba(0, 240, 255, 0.7); }
+    }
+    .glow-active {
+      animation: pulseGlow 1.8s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WEBGL SCENE -->
+  <div id="webgl-container"></div>
+
+  <!-- TOP NAVIGATION / HUD BAR -->
+  <header class="fixed top-0 left-0 right-0 z-20 pointer-events-none p-2 sm:p-3 flex items-center justify-between gap-2">
+    <!-- Brand Logo -->
+    <div class="pointer-events-auto cosmic-panel px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl flex items-center gap-2.5">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 flex items-center justify-center shadow-lg border border-yellow-200">
+        <span class="text-xl sm:text-2xl">🤖</span>
+      </div>
+      <div>
+        <h1 class="font-orbitron font-black text-xs sm:text-base tracking-wider bg-gradient-to-r from-cyan-300 via-yellow-300 to-pink-400 bg-clip-text text-transparent leading-tight">
+          GALAXY ADVENTURE
+        </h1>
+        <p class="text-[10px] sm:text-xs font-extrabold text-yellow-300 tracking-wide drop-shadow">
+          Created by: Widodo Guru SD
+        </p>
+      </div>
+    </div>
+
+    <!-- Turn Banner (Visible in Game) -->
+    <div id="hud-turn-banner" class="hidden pointer-events-auto cosmic-panel-gold px-4 py-1.5 sm:px-6 sm:py-2 rounded-2xl flex items-center gap-3">
+      <div id="hud-turn-dot" class="w-3.5 h-3.5 rounded-full bg-yellow-400 animate-ping"></div>
+      <div class="text-center">
+        <div class="text-[10px] uppercase tracking-widest text-yellow-200/90 font-bold">Giliran Bermain</div>
+        <div id="hud-turn-name" class="font-orbitron font-extrabold text-sm sm:text-base text-white">KAPTEN GOLD</div>
+      </div>
+    </div>
+
+    <!-- Right Quick Actions -->
+    <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+      <button id="btn-toggle-sidebar" title="Daftar Pemain" class="lg:hidden btn-cosmic cosmic-panel p-2 sm:p-2.5 rounded-xl text-cyan-300 hover:text-white">
+        👥
+      </button>
+      <button id="btn-audio-toggle" title="Suara On/Off" class="btn-cosmic cosmic-panel p-2 sm:p-2.5 rounded-xl text-cyan-300 hover:text-white font-bold text-sm sm:text-base">
+        🔊
+      </button>
+      <button id="btn-open-guide" title="Panduan Bermain" class="btn-cosmic cosmic-panel p-2 sm:p-2.5 rounded-xl text-yellow-300 hover:text-white font-bold text-sm sm:text-base">
+        📖
+      </button>
+      <button id="btn-open-settings" title="Pengaturan" class="btn-cosmic cosmic-panel p-2 sm:p-2.5 rounded-xl text-pink-300 hover:text-white font-bold text-sm sm:text-base">
+        ⚙️
+      </button>
+      <button id="btn-back-menu" title="Menu Utama" class="hidden btn-cosmic cosmic-panel px-3 py-2 rounded-xl text-xs sm:text-sm font-bold text-amber-300 hover:text-white">
+        🏠 Menu
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       SCREEN 1: MAIN MENU OVERLAY
+       ========================================== -->
+  <section id="screen-main-menu" class="fixed inset-0 z-30 flex items-center justify-center p-4 pointer-events-auto bg-gradient-to-b from-slate-950/60 via-indigo-950/40 to-slate-950/80">
+    <div class="max-w-xl w-full cosmic-panel-gold rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden animate-float">
+      <!-- Decorative Glow Orbs -->
+      <div class="absolute -top-20 -left-20 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -right-20 w-48 h-48 bg-purple-500/25 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Chibi Hero Badge -->
+      <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-cyan-200 text-xs sm:text-sm font-bold mb-3">
+        <span>🚀 MISI EDUKASI MATEMATIKA SD</span>
+      </div>
+
+      <h1 class="font-orbitron font-black text-3xl sm:text-5xl tracking-tight bg-gradient-to-r from-yellow-300 via-amber-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-md">
+        GALAXY ADVENTURE
+      </h1>
+      <p class="font-orbitron font-bold text-sm sm:text-lg text-cyan-300 mt-1 tracking-wide">
+        PETUALANGAN ULAR TANGGA ANTARIKSA 3D
+      </p>
+      <div class="mt-2 inline-block px-4 py-1 rounded-full bg-slate-950/90 border-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.4)]">
+        <p class="text-xs sm:text-sm font-extrabold text-yellow-300 tracking-wider">
+          ✨ Created by: Widodo Guru SD ✨
+        </p>
+      </div>
+
+      <!-- Interactive 3D Robot Hero Showcase Notice -->
+      <div class="my-5 p-4 rounded-2xl bg-slate-900/75 border border-cyan-500/30 flex flex-col sm:flex-row items-center gap-4 text-left">
+        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-slate-800 via-indigo-950 to-amber-900/60 border-2 border-yellow-400 flex items-center justify-center shrink-0 shadow-inner relative">
+          <!-- Custom SVG of the Reference Black & Gold Chibi Mecha Robot -->
+          <svg viewBox="0 0 100 100" class="w-16 h-16 sm:w-20 sm:h-20">
+            <!-- Gold Halo Glow -->
+            <circle cx="50" cy="50" r="42" fill="rgba(255, 215, 0, 0.12)" />
+            <!-- Helmet Crest -->
+            <polygon points="50,6 42,22 58,22" fill="#ffd700" stroke="#fff" stroke-width="1.5"/>
+            <!-- Ear Pods -->
+            <rect x="14" y="30" width="8" height="18" rx="3" fill="#ffd700"/>
+            <rect x="78" y="30" width="8" height="18" rx="3" fill="#ffd700"/>
+            <!-- Helmet Head -->
+            <rect x="22" y="18" width="56" height="40" rx="14" fill="#1a1d24" stroke="#ffd700" stroke-width="3.5"/>
+            <!-- Visor -->
+            <rect x="29" y="28" width="42" height="18" rx="6" fill="#090c10" stroke="#eab308" stroke-width="1.5"/>
+            <!-- Happy Glowing Arc Eyes -->
+            <path d="M 35 39 Q 40 31 45 39" stroke="#ffea00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M 55 39 Q 60 31 65 39" stroke="#ffea00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <!-- Silver Mouthplate -->
+            <polygon points="40,48 60,48 55,55 45,55" fill="#e2e8f0"/>
+            <!-- Torso Armor -->
+            <path d="M 28 60 L 72 60 L 66 88 L 34 88 Z" fill="#1a1d24" stroke="#ffd700" stroke-width="3"/>
+            <!-- Gold Chest Shield Emblem -->
+            <polygon points="55,65 65,65 65,75 60,80 55,75" fill="#111" stroke="#ffd700" stroke-width="1.8"/>
+            <!-- Pauldrons -->
+            <ellipse cx="22" cy="66" rx="10" ry="7" fill="#1a1d24" stroke="#ffd700" stroke-width="2.5"/>
+            <ellipse cx="78" cy="66" rx="10" ry="7" fill="#1a1d24" stroke="#ffd700" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <div class="text-xs sm:text-sm text-slate-200 space-y-1">
+          <div class="font-bold text-yellow-300 text-sm sm:text-base">✨ Fitur Petualangan Galaksi:</div>
+          <p>• <b>100 Petak 3D</b> dengan Tangga Laser & Ular Energi Kosmik.</p>
+          <p>• <b>Kartu Berburu Poin 3D</b> (Tanpa Dadu!) + 3 Pilihan Bonus Bintang.</p>
+          <p>• <b>20 Kuis Hologram</b> Perkalian & Pembagian berhadiah Poin.</p>
+        </div>
+      </div>
+
+      <!-- Saved Game Resume Banner (if exists) -->
+      <div id="saved-game-banner" class="hidden mb-4 p-3 rounded-2xl bg-emerald-950/80 border border-emerald-400/60 flex items-center justify-between gap-2">
+        <div class="text-left">
+          <div class="text-xs font-bold text-emerald-300">💾 Progres Permainan Tersimpan Ditemukan!</div>
+          <div id="saved-game-info" class="text-[11px] text-emerald-100">Lanjutkan petualangan terakhir Anda.</div>
+        </div>
+        <button id="btn-resume-game" class="btn-cosmic px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shrink-0">
+          LANJUTKAN ▶
+        </button>
+      </div>
+
+      <!-- Main Menu Buttons -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+        <button id="btn-menu-start" class="sm:col-span-3 btn-cosmic py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-slate-950 font-orbitron font-black text-lg sm:text-xl shadow-xl border-2 border-yellow-100 glow-active">
+          🚀 MULAI PETUALANGAN
+        </button>
+        <button id="btn-menu-guide" class="btn-cosmic py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-700 text-white font-bold text-sm sm:text-base border border-cyan-300/50">
+          📖 PANDUAN
+        </button>
+        <button id="btn-menu-settings" class="btn-cosmic py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-bold text-sm sm:text-base border border-purple-300/50">
+          ⚙️ PENGATURAN
+        </button>
+        <button id="btn-menu-explore" class="btn-cosmic py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold text-sm sm:text-base border border-emerald-300/50">
+          🔭 LIHAT PAPAN 3D
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       SCREEN 2: PLAYER SETUP MODAL
+       ========================================== -->
+  <section id="screen-player-setup" class="hidden fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6 pointer-events-auto bg-slate-950/75 overflow-y-auto">
+    <div class="max-w-3xl w-full cosmic-panel-gold rounded-3xl p-4 sm:p-7 my-auto">
+      <div class="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4">
+        <div>
+          <h2 class="font-orbitron font-black text-xl sm:text-2xl text-yellow-300">👩‍🚀 KONFIGURASI ASTRONOT ROBOT</h2>
+          <p class="text-xs sm:text-sm text-cyan-200">Pilih jumlah pemain (1–4), beri nama, dan pilih warna Mecha Robot 3D</p>
+        </div>
+        <button id="btn-setup-back" class="btn-cosmic px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-600 text-xs sm:text-sm text-slate-200">
+          ✕ Kembali
+        </button>
+      </div>
+
+      <!-- Number of Players Toggle -->
+      <div class="mb-5">
+        <label class="block text-xs sm:text-sm font-bold text-cyan-300 mb-2 uppercase tracking-wider">Jumlah Pemain:</label>
+        <div class="grid grid-cols-4 gap-2.5">
+          <button data-pcount="1" class="pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-yellow-400 bg-yellow-400/20 text-yellow-200">
+            1 Pemain
+          </button>
+          <button data-pcount="2" class="pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-cyan-500/40 bg-slate-900/70 text-slate-300">
+            2 Pemain
+          </button>
+          <button data-pcount="3" class="pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-cyan-500/40 bg-slate-900/70 text-slate-300">
+            3 Pemain
+          </button>
+          <button data-pcount="4" class="pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-cyan-500/40 bg-slate-900/70 text-slate-300">
+            4 Pemain
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Opponent Toggle (Only shown when 1 Player is selected) -->
+      <div id="ai-toggle-box" class="mb-4 p-3 rounded-2xl bg-indigo-950/80 border border-indigo-400/50 flex items-center justify-between">
+        <div>
+          <div class="font-bold text-sm text-indigo-200">🤖 Lawan Robot AI Otomatis (Astro-Bot)</div>
+          <div class="text-xs text-indigo-300/80">Aktifkan agar kamu bertanding melawan Robot AI pintar!</div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="chk-vs-ai" checked class="sr-only peer">
+          <div class="w-12 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+        </label>
+      </div>
+
+      <!-- Player Configuration Cards Grid -->
+      <div id="setup-players-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto pr-1">
+        <!-- Dynamically populated by PlayerManager -->
+      </div>
+
+      <!-- Launch Button -->
+      <div class="mt-5 pt-3 border-t border-cyan-500/30 flex justify-end">
+        <button id="btn-launch-game" class="w-full sm:w-auto btn-cosmic px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-orbitron font-black text-base sm:text-lg shadow-xl border-2 border-white">
+          🚀 MULAI PETUALANGAN SEKARANG!
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       SCREEN 3: IN-GAME HUD (SIDEBAR + BOTTOM BAR)
+       ========================================== -->
+  <div id="game-hud" class="hidden fixed inset-0 z-10 pointer-events-none">
+
+    <!-- LEFT SIDEBAR: PLAYERS & STAR BONUS INVENTORY -->
+    <aside id="player-sidebar" class="pointer-events-auto fixed top-16 left-2 sm:left-3 w-64 sm:w-72 max-h-[calc(100vh-190px)] overflow-y-auto cosmic-panel rounded-2xl p-2.5 sm:p-3 space-y-2.5 transition-transform duration-300">
+      <div class="flex items-center justify-between border-b border-cyan-400/30 pb-1.5">
+        <span class="font-orbitron font-bold text-xs text-cyan-300 tracking-wider">⚡ DASHBOARD PEMAIN</span>
+        <span id="deck-remaining-badge" class="text-[11px] bg-indigo-900/90 border border-indigo-400/50 px-2 py-0.5 rounded-full text-indigo-200 font-semibold">
+          Deck: 8/8
+        </span>
+      </div>
+
+      <!-- Player Cards List -->
+      <div id="sidebar-players-list" class="space-y-2">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Recent Activity Log -->
+      <div class="pt-1 border-t border-cyan-500/20">
+        <div class="text-[10px] uppercase tracking-wider text-cyan-300/80 font-bold mb-1">📡 Log Antariksa:</div>
+        <div id="game-event-log" class="text-[11px] text-slate-200 bg-slate-950/70 rounded-xl p-2 h-16 overflow-y-auto space-y-1 font-medium">
+          <div>Selamat datang di Galaxy Adventure!</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT FLOATING CAMERA 360 CONTROLS -->
+    <div class="pointer-events-auto fixed top-16 right-2 sm:right-3 cosmic-panel rounded-2xl p-2 flex flex-col gap-1.5">
+      <div class="text-[9px] font-orbitron text-center text-cyan-300 font-bold tracking-wider">KAMERA 360°</div>
+      <button data-cam="iso" class="cam-btn btn-cosmic px-2.5 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/40">
+        📐 Isometrik
+      </button>
+      <button data-cam="top" class="cam-btn btn-cosmic px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[11px] font-bold text-amber-200 hover:bg-amber-500/40">
+        🔼 Top View
+      </button>
+      <div class="grid grid-cols-3 gap-1">
+        <button data-cam="front" title="Tampilan Depan" class="cam-btn btn-cosmic py-1 rounded-lg bg-slate-800/90 border border-slate-600 text-[10px] font-bold text-slate-200">
+          Depan
+        </button>
+        <button data-cam="side" title="Tampilan Samping" class="cam-btn btn-cosmic py-1 rounded-lg bg-slate-800/90 border border-slate-600 text-[10px] font-bold text-slate-200">
+          Samping
+        </button>
+        <button data-cam="back" title="Tampilan Belakang" class="cam-btn btn-cosmic py-1 rounded-lg bg-slate-800/90 border border-slate-600 text-[10px] font-bold text-slate-200">
+          Belakang
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-1">
+        <button id="btn-zoom-in" title="Perbesar" class="btn-cosmic py-1 rounded-lg bg-slate-800 border border-slate-600 text-xs font-bold text-cyan-300">
+          ➕ Zoom
+        </button>
+        <button id="btn-zoom-out" title="Perkecil" class="btn-cosmic py-1 rounded-lg bg-slate-800 border border-slate-600 text-xs font-bold text-cyan-300">
+          ➖ Zoom
+        </button>
+      </div>
+      <button id="btn-cam-follow" class="btn-cosmic px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-[10px] font-bold text-emerald-200">
+        🎯 Ikuti Robot: OFF
+      </button>
+      <button data-cam="reset" class="cam-btn btn-cosmic px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/50 text-[10px] font-bold text-rose-200">
+        🔄 Reset Kamera
+      </button>
+    </div>
+
+    <!-- BOTTOM CENTER: 3D POINT HUNTING CARD DECK & DRAW BUTTON -->
+    <div class="pointer-events-auto fixed bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 w-[96%] max-w-xl cosmic-panel-gold rounded-3xl px-4 py-2.5 sm:px-6 sm:py-3 flex items-center justify-between gap-3 sm:gap-5">
+      <!-- 3D Visual Card Deck Stack (Single Stack of 8 Cards) -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div id="visual-card-deck" class="deck-perspective relative w-16 h-24 sm:w-20 sm:h-28 shrink-0 cursor-pointer group" title="Tumpukan Kartu Berburu Poin">
+          <!-- Thickness layers -->
+          <div class="card-stack-layer" style="transform: translate(6px, 6px);"></div>
+          <div class="card-stack-layer" style="transform: translate(4px, 4px);"></div>
+          <div class="card-stack-layer layer-3" style="transform: translate(2px, 2px);"></div>
+          <div class="card-stack-layer layer-2" style="transform: translate(1px, 1px);"></div>
+          <!-- Top card of stack -->
+          <div class="card-stack-layer layer-1 flex flex-col items-center justify-center p-1.5 group-hover:-translate-y-1 transition-transform">
+            <div class="w-full h-full rounded-lg border border-yellow-400/60 bg-gradient-to-b from-indigo-950 via-purple-900 to-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
+              <div class="text-xl sm:text-2xl animate-pulse">🌟</div>
+              <div class="font-orbitron font-black text-[7px] sm:text-[8px] text-yellow-300 tracking-tighter text-center mt-0.5">
+                KARTU POIN
+              </div>
+              <div id="deck-count-pill" class="mt-1 px-1.5 py-0.2 bg-yellow-400 text-slate-950 font-black text-[9px] rounded-full">
+                8
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-left">
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-yellow-400/20 border border-yellow-400/40 text-yellow-300 text-[10px] font-bold">
+            <span>🃏 KARTU BERBURU POIN 3D</span>
+          </div>
+          <div id="bottom-turn-label" class="font-orbitron font-black text-sm sm:text-base text-white mt-0.5">
+            Giliran: Kapten Gold
+          </div>
+          <div id="bottom-status-text" class="text-[11px] sm:text-xs text-cyan-200">
+            Tekan <b>AMBIL KARTU</b> untuk melangkah!
+          </div>
+          <div id="last-drawn-card-pill" class="hidden mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-950/90 border border-yellow-400 text-yellow-300 text-[11px] font-extrabold">
+            <span>Kartu Terakhir: -</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Draw Card Action Button -->
+      <button id="btn-draw-card" class="btn-cosmic px-5 py-3.5 sm:px-7 sm:py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-slate-950 font-orbitron font-black text-sm sm:text-base shadow-xl border-2 border-white shrink-0 glow-active">
+        🃏 AMBIL KARTU
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 1: 3D CARD FLIP REVEAL OVERLAY
+       ========================================== -->
+  <div id="modal-card-reveal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+    <div class="flex flex-col items-center text-center">
+      <div id="card-modal-status" class="text-xs sm:text-sm font-orbitron font-bold text-yellow-300 tracking-widest uppercase mb-3 bg-slate-900/90 px-4 py-1.5 rounded-full border border-yellow-400/60 shadow-lg">
+        ✨ Mengocok & Membuka Kartu Berburu Poin...
+      </div>
+
+      <div class="drawn-card-container">
+        <div id="drawn-card-inner" class="drawn-card-inner">
+          <!-- Card Back (Normal left-to-right text, never mirrored) -->
+          <div id="drawn-card-back" class="card-face p-3.5 flex flex-col items-center justify-center border-4 border-yellow-400">
+            <div class="w-full h-full rounded-xl border-2 border-cyan-400/70 bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 flex flex-col items-center justify-center p-4 text-center">
+              <div class="text-6xl mb-3">🌌</div>
+              <div class="font-orbitron font-black text-lg text-yellow-300 tracking-wider drop-shadow">
+                GALAXY
+              </div>
+              <div class="font-orbitron font-extrabold text-xs text-cyan-200 tracking-wide mt-1">
+                KARTU BERBURU POIN
+              </div>
+              <div class="mt-4 text-2xl">⭐</div>
+            </div>
+          </div>
+
+          <!-- Card Front (Normal left-to-right text, never mirrored) -->
+          <div id="drawn-card-front" class="card-face hidden p-4 flex flex-col items-center justify-between border-4 border-yellow-300">
+            <div class="w-full space-y-1">
+              <div class="text-[10px] font-orbitron font-extrabold text-cyan-300 tracking-widest uppercase">
+                GALAXY • KARTU BERBURU POIN
+              </div>
+              <div id="card-front-header" class="w-full text-center font-orbitron font-black text-sm uppercase tracking-wider py-1.5 rounded-lg bg-yellow-400 text-slate-950 shadow">
+                KARTU ANGKA 1
+              </div>
+            </div>
+
+            <div class="my-auto flex flex-col items-center justify-center">
+              <div id="card-front-icon" class="text-7xl sm:text-8xl font-orbitron font-black text-yellow-300 drop-shadow-[0_0_25px_rgba(255,215,0,0.9)]">
+                1
+              </div>
+              <div id="card-front-subtitle" class="mt-2 font-orbitron font-extrabold text-xs sm:text-sm text-white bg-indigo-950/90 px-3 py-1 rounded-full border border-cyan-400/60">
+                MAJU 1 LANGKAH
+              </div>
+            </div>
+
+            <div id="card-front-desc" class="w-full text-center text-xs sm:text-sm font-bold text-yellow-100 bg-slate-950/95 p-2.5 rounded-xl border border-yellow-400/50">
+              Robot bergerak maju 1 petak!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 2: STAR BONUS SELECTION (3 CHOICES)
+       ========================================== -->
+  <div id="modal-star-bonus" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto">
+    <div class="max-w-lg w-full cosmic-panel-gold rounded-3xl p-5 sm:p-7 text-center relative">
+      <div class="text-5xl mb-2 animate-bounce">🌟</div>
+      <h3 class="font-orbitron font-black text-2xl sm:text-3xl text-yellow-300">KARTU BINTANG!</h3>
+      <p id="star-modal-subtitle" class="text-xs sm:text-sm text-cyan-200 mt-1 mb-5">
+        Pilih satu Bonus Spesial di bawah ini! (Setiap bonus hanya dapat digunakan 1 kali per pemain)
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Bonus 1: 10 Poin -->
+        <button id="btn-bonus-points" class="btn-cosmic p-4 rounded-2xl bg-gradient-to-b from-amber-500/30 to-yellow-600/40 border-2 border-yellow-400 flex flex-col items-center gap-2">
+          <span class="text-4xl">💎</span>
+          <span class="font-orbitron font-black text-base text-yellow-300">+10 POIN</span>
+          <span class="text-[11px] text-slate-200">Langsung tambah 10 poin ke skormu!</span>
+          <span id="badge-bonus-points" class="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950">TERSEDIA</span>
+        </button>
+
+        <!-- Bonus 2: 6 Langkah -->
+        <button id="btn-bonus-steps" class="btn-cosmic p-4 rounded-2xl bg-gradient-to-b from-cyan-500/30 to-blue-600/40 border-2 border-cyan-400 flex flex-col items-center gap-2">
+          <span class="text-4xl">🚀</span>
+          <span class="font-orbitron font-black text-base text-cyan-300">6 LANGKAH</span>
+          <span class="text-[11px] text-slate-200">Robot melaju cepat 6 petak ke depan!</span>
+          <span id="badge-bonus-steps" class="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950">TERSEDIA</span>
+        </button>
+
+        <!-- Bonus 3: Acak Kartu 1x -->
+        <button id="btn-bonus-redraw" class="btn-cosmic p-4 rounded-2xl bg-gradient-to-b from-purple-500/30 to-pink-600/40 border-2 border-purple-400 flex flex-col items-center gap-2">
+          <span class="text-4xl">🃏</span>
+          <span class="font-orbitron font-black text-base text-purple-300">ACAK KARTU 1X</span>
+          <span class="text-[11px] text-slate-200">Ambil 1 kartu tambahan secara acak!</span>
+          <span id="badge-bonus-redraw" class="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950">TERSEDIA</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 3: HOLOGRAM MATH QUESTION (20 TILES)
+       ========================================== -->
+  <div id="modal-math-question" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto">
+    <div class="max-w-md w-full cosmic-panel hologram-box rounded-3xl p-6 sm:p-7 text-center border-2 border-cyan-400 shadow-[0_0_50px_rgba(0,240,255,0.4)]">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-300 text-cyan-200 text-xs font-bold mb-2">
+        <span>🛸 PETAK TANTANGAN MATEMATIKA (+5 POIN)</span>
+      </div>
+
+      <div id="math-tile-badge" class="text-xs text-yellow-300 font-orbitron font-bold">
+        PETAK #16 • KUIS HOLOGRAM
+      </div>
+
+      <!-- Question Box -->
+      <div class="my-5 py-6 px-4 rounded-2xl bg-slate-950/90 border-2 border-cyan-400/60 shadow-inner">
+        <div class="text-xs text-cyan-300/80 uppercase font-bold mb-1">Berapakah hasil dari:</div>
+        <div id="math-question-text" class="font-orbitron font-black text-4xl sm:text-5xl text-white tracking-wider">
+          7 × 8 = ?
+        </div>
+      </div>
+
+      <!-- 3 Big Answer Buttons -->
+      <div id="math-options-grid" class="grid grid-cols-1 gap-3">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Feedback Banner inside Modal -->
+      <div id="math-feedback-box" class="hidden mt-4 p-3 rounded-2xl font-orbitron font-black text-lg"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 4: VICTORY / GALAXY CHAMPION SCREEN
+       ========================================== -->
+  <div id="modal-victory" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md pointer-events-auto overflow-y-auto">
+    <div class="max-w-xl w-full cosmic-panel-gold rounded-3xl p-6 sm:p-8 text-center my-auto relative overflow-hidden">
+      <div class="text-6xl mb-2 animate-bounce">🏆</div>
+      <div class="inline-block px-4 py-1 rounded-full bg-yellow-400/20 border border-yellow-300 text-yellow-200 font-orbitron font-bold text-xs mb-2">
+        PETAK 100 TERCAPAI!
+      </div>
+      <h2 class="font-orbitron font-black text-3xl sm:text-5xl bg-gradient-to-r from-yellow-200 via-amber-400 to-yellow-200 bg-clip-text text-transparent">
+        GALAXY CHAMPION!
+      </h2>
+      <p id="victory-winner-name" class="font-orbitron font-extrabold text-xl sm:text-2xl text-cyan-300 mt-1">
+        KAPTEN GOLD
+      </p>
+
+      <!-- Leaderboard Table -->
+      <div class="my-5 bg-slate-950/80 border border-cyan-500/40 rounded-2xl p-4 text-left">
+        <div class="font-orbitron font-bold text-xs text-yellow-300 uppercase tracking-wider mb-2.5">
+          📊 Peringkat & Statistik Akhir Petualangan:
+        </div>
+        <div id="victory-leaderboard" class="space-y-2">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button id="btn-victory-replay" class="btn-cosmic py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-orbitron font-black text-sm border-2 border-white">
+          🔄 MAIN LAGI
+        </button>
+        <button id="btn-victory-inspect" class="btn-cosmic py-3.5 px-4 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-orbitron font-bold text-sm border border-cyan-300">
+          🔭 LIHAT PAPAN
+        </button>
+        <button id="btn-victory-menu" class="btn-cosmic py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-orbitron font-bold text-sm border border-slate-500">
+          🏠 MENU UTAMA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 5: GUIDE (PANDUAN) & SETTINGS (PENGATURAN)
+       ========================================== -->
+  <div id="modal-guide" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+    <div class="max-w-2xl w-full cosmic-panel rounded-3xl p-5 sm:p-7 max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-cyan-400/30 pb-3 mb-4">
+        <h3 class="font-orbitron font-black text-lg sm:text-2xl text-yellow-300">📖 PANDUAN PETUALANGAN GALAKSI</h3>
+        <button id="btn-close-guide" class="btn-cosmic px-3 py-1 rounded-xl bg-slate-800 text-slate-200 text-sm font-bold">✕ Tutup</button>
+      </div>
+      <div class="space-y-3 text-xs sm:text-sm text-slate-100 leading-relaxed">
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-cyan-500/30">
+          <b class="text-cyan-300">1. Tujuan Permainan:</b><br>
+          Jadilah robot pertama yang mencapai <b>Petak 100 (Stasiun Emas Finish)</b>! Sambil melangkah, kumpulkan poin sebanyak-banyaknya dari petak soal matematika dan Kartu Bintang.
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-yellow-500/30">
+          <b class="text-yellow-300">2. Tumpukan Kartu Berburu Poin 3D (Pengganti Dadu):</b><br>
+          Tekan tombol <b>AMBIL KARTU</b>. Terdapat 8 kartu dalam 1 putaran deck:
+          <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-200">
+            <li><b>Kartu Angka 1–6:</b> Robot berjalan maju sesuai angka kartu.</li>
+            <li><b>Kartu ZONK:</b> Kesempatan bergerak terlewat pada giliran ini.</li>
+            <li><b>Kartu BINTANG:</b> Pilih 1 dari 3 bonus (<b>+10 Poin</b>, <b>Maju 6 Langkah</b>, atau <b>Acak Kartu 1x</b>). Setiap jenis bonus bisa dipakai 1 kali per pemain!</li>
+          </ul>
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-emerald-500/30">
+          <b class="text-emerald-300">3. 20 Petak Pertanyaan Matematika (Tanda ?):</b><br>
+          Saat berhenti di petak bertanda <b>?</b>, jawab soal perkalian atau pembagian. Jawaban benar mendapat <b>+5 Poin</b>, jawaban salah <b>0 Poin</b> (tidak mengurangi poin).
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-purple-500/30">
+          <b class="text-purple-300">4. Tangga Laser & Ular Energi Kosmik:</b><br>
+          Berhenti di kaki <b>Tangga Energi</b> akan mengangkat robotmu naik ke petak atas! Berhenti di kepala <b>Ular Kosmik</b> akan membuat robotmu meluncur turun mengikuti tubuh ular.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+    <div class="max-w-md w-full cosmic-panel rounded-3xl p-6">
+      <div class="flex items-center justify-between border-b border-cyan-400/30 pb-3 mb-4">
+        <h3 class="font-orbitron font-black text-xl text-pink-300">⚙️ PENGATURAN GAME</h3>
+        <button id="btn-close-settings" class="btn-cosmic px-3 py-1 rounded-xl bg-slate-800 text-slate-200 text-sm font-bold">✕ Tutup</button>
+      </div>
+      <div class="space-y-4 text-sm">
+        <div>
+          <label class="flex justify-between font-bold text-cyan-200 mb-1">
+            <span>🎵 Volume Suara & Musik</span>
+            <span id="lbl-volume-val">80%</span>
+          </label>
+          <input id="slider-volume" type="range" min="0" max="100" value="80" class="w-full accent-cyan-400 cursor-pointer" />
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-slate-700">
+          <div>
+            <div class="font-bold text-white">Musik Latar Galaksi</div>
+            <div class="text-xs text-slate-400">Synthesizer ambient luar angkasa</div>
+          </div>
+          <input type="checkbox" id="chk-bgm" checked class="w-5 h-5 accent-cyan-400 cursor-pointer" />
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-slate-700">
+          <div>
+            <div class="font-bold text-white">Kamera Otomatis Ikuti Robot</div>
+            <div class="text-xs text-slate-400">Fokuskan kamera saat robot melangkah</div>
+          </div>
+          <input type="checkbox" id="chk-autofollow" class="w-5 h-5 accent-cyan-400 cursor-pointer" />
+        </div>
+
+        <div class="pt-2 border-t border-slate-700 flex justify-between gap-2">
+          <button id="btn-clear-save" class="btn-cosmic px-4 py-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-xs">
+            🗑️ Hapus Data Simpanan
+          </button>
+          <button id="btn-save-settings" class="btn-cosmic px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs">
+            ✓ Selesai
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST / BANNER FOR ZONK / SNAKE / LADDER EVENTS -->
+  <div id="floating-banner" class="hidden fixed top-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none cosmic-panel-gold px-6 py-3 rounded-2xl text-center shadow-2xl transition-all duration-300">
+    <div id="floating-banner-title" class="font-orbitron font-black text-lg sm:text-2xl text-yellow-300"></div>
+    <div id="floating-banner-sub" class="text-xs sm:text-sm text-white font-semibold mt-0.5"></div>
+  </div>
+
+  <!-- ==========================================
+       MODULAR GAME JAVASCRIPT ARCHITECTURE
+       ========================================== -->
+  <script>
+    /**
+     * ============================================================================
+     * 1. AUDIO MANAGER (Web Audio API Synthesizer for Music & Space SFX)
+     * ============================================================================
+     */
+    class AudioManager {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.volume = 0.8;
+        this.bgmEnabled = true;
+        this.bgmInterval = null;
+        this.bgmStep = 0;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setVolume(val) {
+        this.volume = Math.max(0, Math.min(1, val));
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted) {
+          this.stopBGM();
+        } else if (this.bgmEnabled) {
+          this.startBGM();
+        }
+        return this.muted;
+      }
+
+      playTone(freq, type = 'sine', duration = 0.15, delay = 0, gainScale = 0.25, slideTo = null) {
+        if (this.muted || this.volume <= 0) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) {
+          osc.frequency.exponentialRampToValueAtTime(slideTo, now + duration);
+        }
+
+        const peakGain = Math.max(0.001, this.volume * gainScale);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(peakGain, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      }
+
+      playClick() {
+        this.playTone(620, 'triangle', 0.08, 0, 0.2, 880);
+      }
+
+      playShuffle() {
+        for (let i = 0; i < 6; i++) {
+          this.playTone(220 + i * 45, 'triangle', 0.05, i * 0.06, 0.18, 120);
+        }
+      }
+
+      playCardFlip() {
+        this.playTone(350, 'sine', 0.14, 0, 0.25, 780);
+        this.playTone(880, 'triangle', 0.18, 0.1, 0.2, 1100);
+      }
+
+      playStep() {
+        this.playTone(300, 'sine', 0.09, 0, 0.22, 480);
+      }
+
+      playLaserLadder() {
+        const notes = [330, 440, 554, 659, 880, 1108];
+        notes.forEach((n, i) => {
+          this.playTone(n, 'sawtooth', 0.14, i * 0.08, 0.16, n * 1.15);
+        });
+      }
+
+      playSnakeSlide() {
+        this.playTone(680, 'sawtooth', 0.65, 0, 0.22, 140);
+        this.playTone(520, 'sine', 0.65, 0.08, 0.2, 110);
+      }
+
+      playStarBonus() {
+        const chord = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        chord.forEach((n, i) => {
+          this.playTone(n, 'triangle', 0.25, i * 0.07, 0.25);
+        });
+      }
+
+      playZonk() {
+        this.playTone(260, 'sawtooth', 0.25, 0, 0.25, 180);
+        this.playTone(175, 'sawtooth', 0.45, 0.24, 0.28, 95);
+      }
+
+      playCorrect() {
+        this.playTone(523.25, 'triangle', 0.14, 0, 0.28);
+        this.playTone(659.25, 'triangle', 0.14, 0.12, 0.28);
+        this.playTone(783.99, 'triangle', 0.14, 0.24, 0.28);
+        this.playTone(1046.5, 'triangle', 0.35, 0.36, 0.32);
+      }
+
+      playWrong() {
+        this.playTone(240, 'square', 0.2, 0, 0.2, 190);
+        this.playTone(180, 'square', 0.32, 0.2, 0.22, 130);
+      }
+
+      playVictory() {
+        const melody = [
+          { f: 523.25, d: 0.15, t: 0 },
+          { f: 659.25, d: 0.15, t: 0.16 },
+          { f: 783.99, d: 0.15, t: 0.32 },
+          { f: 1046.5, d: 0.32, t: 0.48 },
+          { f: 783.99, d: 0.15, t: 0.82 },
+          { f: 1046.5, d: 0.55, t: 1.0 }
+        ];
+        melody.forEach(m => this.playTone(m.f, 'triangle', m.d, m.t, 0.32));
+      }
+
+      startBGM() {
+        if (this.bgmInterval) clearInterval(this.bgmInterval);
+        if (this.muted || !this.bgmEnabled) return;
+        const scale = [261.63, 329.63, 392.00, 493.88, 523.25, 392.00, 329.63, 293.66];
+        this.bgmInterval = setInterval(() => {
+          if (this.muted || !this.bgmEnabled || !this.ctx || this.ctx.state !== 'running') return;
+          const freq = scale[this.bgmStep % scale.length];
+          this.playTone(freq, 'sine', 0.35, 0, 0.045);
+          this.bgmStep++;
+        }, 480);
+      }
+
+      stopBGM() {
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 2. SCORE MANAGER
+     * ============================================================================
+     */
+    class ScoreManager {
+      addPoints(player, pts, reason = '') {
+        player.score += pts;
+        player.history.push(`${reason}: +${pts} Poin`);
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 3. STAR BONUS MANAGER (Tracks per-player 3 Star Bonuses)
+     * ============================================================================
+     */
+    class StarBonusManager {
+      createInitialInventory() {
+        return {
+          points10: true,   // BONUS 1: +10 POIN
+          steps6: true,     // BONUS 2: 6 LANGKAH
+          redraw1: true     // BONUS 3: ACAK KARTU 1X
+        };
+      }
+
+      hasAvailableBonus(player) {
+        const b = player.starBonuses;
+        return b.points10 || b.steps6 || b.redraw1;
+      }
+
+      useBonus(player, bonusKey) {
+        if (player.starBonuses[bonusKey]) {
+          player.starBonuses[bonusKey] = false;
+          return true;
+        }
+        return false;
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 4. CARD MANAGER (8 Cards in a single deck cycle, fair shuffle, no dice)
+     * ============================================================================
+     */
+    class CardManager {
+      constructor() {
+        this.baseCards = [
+          { id: 'num_1', type: 'NUMBER', value: 1, label: 'KARTU ANGKA 1', icon: '1', desc: 'Robot bergerak maju 1 petak!' },
+          { id: 'num_2', type: 'NUMBER', value: 2, label: 'KARTU ANGKA 2', icon: '2', desc: 'Robot bergerak maju 2 petak!' },
+          { id: 'num_3', type: 'NUMBER', value: 3, label: 'KARTU ANGKA 3', icon: '3', desc: 'Robot bergerak maju 3 petak!' },
+          { id: 'num_4', type: 'NUMBER', value: 4, label: 'KARTU ANGKA 4', icon: '4', desc: 'Robot bergerak maju 4 petak!' },
+          { id: 'num_5', type: 'NUMBER', value: 5, label: 'KARTU ANGKA 5', icon: '5', desc: 'Robot bergerak maju 5 petak!' },
+          { id: 'num_6', type: 'NUMBER', value: 6, label: 'KARTU ANGKA 6', icon: '6', desc: 'Robot bergerak maju 6 petak!' },
+          { id: 'star',  type: 'STAR',   value: 0, label: 'KARTU BINTANG', icon: '🌟', desc: 'Pilih 1 dari 3 Bonus Bintang!' },
+          { id: 'zonk',  type: 'ZONK',   value: 0, label: 'KARTU ZONK',    icon: '💥', desc: 'ZONK! Kesempatan bergerak terlewat.' }
+        ];
+        this.deck = [];
+        this.shuffleNewDeck();
+      }
+
+      shuffleNewDeck() {
+        this.deck = [...this.baseCards];
+        // Fisher-Yates fair shuffle
+        for (let i = this.deck.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+        }
+      }
+
+      drawCard(excludeStar = false) {
+        let reshuffled = false;
+        if (this.deck.length === 0) {
+          this.shuffleNewDeck();
+          reshuffled = true;
+        }
+
+        if (excludeStar) {
+          const nonStarIdx = this.deck.findIndex(c => c.type !== 'STAR');
+          if (nonStarIdx !== -1) {
+            const [card] = this.deck.splice(nonStarIdx, 1);
+            return { card, reshuffled };
+          } else {
+            this.shuffleNewDeck();
+            reshuffled = true;
+            const idx = this.deck.findIndex(c => c.type !== 'STAR');
+            const [card] = this.deck.splice(idx, 1);
+            return { card, reshuffled };
+          }
+        }
+
+        const card = this.deck.pop();
+        return { card, reshuffled };
+      }
+
+      getRemainingCount() {
+        return this.deck.length;
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 5. QUESTION MANAGER (20 Curated Elementary Multiplication & Division Questions)
+     * ============================================================================
+     */
+    class QuestionManager {
+      constructor() {
+        this.questionTiles = [
+          2, 7, 11, 16, 20, 23, 29, 36, 44, 48,
+          52, 57, 61, 68, 72, 76, 83, 86, 91, 95
+        ]; // Exactly 20 tiles
+
+        this.masterQuestions = [
+          { q: '4 × 5 = ?', options: ['15', '20', '25'], answer: '20' },
+          { q: '7 × 3 = ?', options: ['21', '24', '18'], answer: '21' },
+          { q: '40 ÷ 5 = ?', options: ['6', '8', '10'], answer: '8' },
+          { q: '54 ÷ 6 = ?', options: ['8', '9', '7'], answer: '9' },
+          { q: '6 × 8 = ?', options: ['42', '48', '54'], answer: '48' },
+          { q: '9 × 4 = ?', options: ['36', '32', '40'], answer: '36' },
+          { q: '35 ÷ 7 = ?', options: ['5', '6', '7'], answer: '5' },
+          { q: '72 ÷ 8 = ?', options: ['8', '9', '7'], answer: '9' },
+          { q: '8 × 7 = ?', options: ['54', '56', '64'], answer: '56' },
+          { q: '6 × 6 = ?', options: ['30', '36', '42'], answer: '36' },
+          { q: '45 ÷ 9 = ?', options: ['4', '5', '6'], answer: '5' },
+          { q: '63 ÷ 7 = ?', options: ['9', '8', '7'], answer: '9' },
+          { q: '9 × 7 = ?', options: ['63', '56', '72'], answer: '63' },
+          { q: '5 × 9 = ?', options: ['40', '45', '50'], answer: '45' },
+          { q: '81 ÷ 9 = ?', options: ['8', '9', '10'], answer: '9' },
+          { q: '32 ÷ 4 = ?', options: ['7', '8', '9'], answer: '8' },
+          { q: '7 × 7 = ?', options: ['47', '49', '51'], answer: '49' },
+          { q: '8 × 9 = ?', options: ['72', '64', '81'], answer: '72' },
+          { q: '50 ÷ 10 = ?', options: ['5', '10', '4'], answer: '5' },
+          { q: '28 ÷ 4 = ?', options: ['6', '7', '8'], answer: '7' },
+          { q: '3 × 9 = ?', options: ['24', '27', '30'], answer: '27' },
+          { q: '64 ÷ 8 = ?', options: ['7', '8', '9'], answer: '8' },
+          { q: '10 × 6 = ?', options: ['50', '60', '70'], answer: '60' },
+          { q: '36 ÷ 6 = ?', options: ['5', '6', '7'], answer: '6' }
+        ];
+
+        this.sessionPool = [];
+        this.resetSessionQuestions();
+      }
+
+      resetSessionQuestions() {
+        this.sessionPool = [...this.masterQuestions];
+        for (let i = this.sessionPool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [this.sessionPool[i], this.sessionPool[j]] = [this.sessionPool[j], this.sessionPool[i]];
+        }
+      }
+
+      isQuestionTile(tileNum) {
+        return this.questionTiles.includes(tileNum);
+      }
+
+      getNextQuestion() {
+        if (this.sessionPool.length === 0) {
+          this.resetSessionQuestions();
+        }
+        return this.sessionPool.pop();
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 6. SNAKE & LADDER MANAGER (Cosmic Space Serpents & Energy Laser Ladders)
+     * ============================================================================
+     */
+    class SnakeLadderManager {
+      constructor() {
+        this.ladders = [
+          { from: 4,  to: 25, color: 0x00f0ff, name: 'Jembatan Laser Cyan' },
+          { from: 13, to: 46, color: 0x00ff88, name: 'Space Elevator Emerald' },
+          { from: 33, to: 49, color: 0xffd700, name: 'Tangga Energi Emas' },
+          { from: 42, to: 63, color: 0xff2a85, name: 'Warp Bridge Magenta' },
+          { from: 50, to: 69, color: 0x38bdf8, name: 'Hyper Ladder Biru' },
+          { from: 62, to: 81, color: 0xb829ff, name: 'Jembatan Astral Ungu' },
+          { from: 74, to: 92, color: 0xff8c00, name: 'Star Bridge Oranye' }
+        ];
+
+        this.snakes = [
+          { from: 27, to: 5,  color: 0x10b981, accent: 0xa7f3d0, name: 'Ular Energi Zamrud' },
+          { from: 40, to: 3,  color: 0x9333ea, accent: 0xf0abfc, name: 'Naga Nebula Ungu' },
+          { from: 43, to: 18, color: 0xf43f5e, accent: 0xfda4af, name: 'Cosmic Serpent Merah' },
+          { from: 54, to: 31, color: 0xf97316, accent: 0xfde047, name: 'Ular Meteor Oranye' },
+          { from: 66, to: 45, color: 0xec4899, accent: 0xfbcfe8, name: 'Alien Wyrm Magenta' },
+          { from: 89, to: 53, color: 0x06b6d4, accent: 0xa5f3fc, name: 'Naga Kosmik Sian' },
+          { from: 97, to: 78, color: 0xeab308, accent: 0xfef08a, name: 'Supernova Serpent Emas' }
+        ];
+      }
+
+      getLadderAt(tileNum) {
+        return this.ladders.find(l => l.from === tileNum) || null;
+      }
+
+      getSnakeAt(tileNum) {
+        return this.snakes.find(s => s.from === tileNum) || null;
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 7. BOARD MANAGER (3D Space Environment, 100 Tiles, 3D Snakes & Ladders)
+     * ============================================================================
+     */
+    class BoardManager {
+      constructor(scene, questionManager, snakeLadderManager) {
+        this.scene = scene;
+        this.questionManager = questionManager;
+        this.snakeLadderManager = snakeLadderManager;
+
+        this.boardGroup = new THREE.Group();
+        this.cosmicEnvGroup = new THREE.Group();
+        this.scene.add(this.boardGroup);
+        this.scene.add(this.cosmicEnvGroup);
+
+        this.tiles = []; // Index 1..100
+        this.tileSize = 2.6;
+        this.tileGap = 0.25;
+        this.stepDist = this.tileSize + this.tileGap;
+
+        this.snakeCurves = {}; // map snake.from -> CatmullRomCurve3
+        this.ladderCurves = {}; // map ladder.from -> CatmullRomCurve3
+        this.questionHolos = [];
+        this.planets = [];
+        this.meteors = [];
+        this.activeTileRing = null;
+      }
+
+      buildAll() {
+        this.buildCosmicEnvironment();
+        this.buildBoardBaseAndTiles();
+        this.buildStartAndFinishMonuments();
+        this.build3DLadders();
+        this.build3DSnakes();
+        this.buildActiveTileHighlight();
+      }
+
+      getTilePosition(tileNum) {
+        const idx = Math.max(1, Math.min(100, tileNum)) - 1;
+        const row = Math.floor(idx / 10);
+        const colInRow = idx % 10;
+        const col = (row % 2 === 0) ? colInRow : (9 - colInRow);
+
+        const offset = 4.5 * this.stepDist;
+        const x = col * this.stepDist - offset;
+        const z = (9 - row) * this.stepDist - offset;
+        return new THREE.Vector3(x, 0.35, z);
+      }
+
+      createTileTexture(num, type, subColor) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        // Background gradient
+        const grad = ctx.createLinearGradient(0, 0, 256, 256);
+        if (type === 'START') {
+          grad.addColorStop(0, '#0284c7');
+          grad.addColorStop(1, '#1e3a8a');
+        } else if (type === 'FINISH') {
+          grad.addColorStop(0, '#f59e0b');
+          grad.addColorStop(1, '#78350f');
+        } else if (type === 'QUESTION') {
+          grad.addColorStop(0, '#0e7490');
+          grad.addColorStop(1, '#1e1b4b');
+        } else if (type === 'LADDER') {
+          grad.addColorStop(0, '#065f46');
+          grad.addColorStop(1, '#0f172a');
+        } else if (type === 'SNAKE') {
+          grad.addColorStop(0, '#881337');
+          grad.addColorStop(1, '#1e1b4b');
+        } else {
+          const even = num % 2 === 0;
+          grad.addColorStop(0, even ? '#1e293b' : '#1e1b4b');
+          grad.addColorStop(1, even ? '#0f172a' : '#111827');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 256, 256);
+
+        // Glowing Neon Border
+        ctx.strokeStyle = subColor || '#00f0ff';
+        ctx.lineWidth = 14;
+        ctx.strokeRect(10, 10, 236, 236);
+
+        // Corner Tech Accents
+        ctx.fillStyle = subColor || '#00f0ff';
+        ctx.fillRect(10, 10, 36, 36);
+        ctx.fillRect(210, 10, 36, 36);
+        ctx.fillRect(10, 210, 36, 36);
+        ctx.fillRect(210, 210, 36, 36);
+
+        // Number Text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 92px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = subColor || '#00f0ff';
+        ctx.shadowBlur = 14;
+        ctx.fillText(String(num), 128, type === 'NORMAL' ? 132 : 105);
+
+        // Special Subtitle / Badge
+        ctx.shadowBlur = 0;
+        if (type === 'START') {
+          ctx.fillStyle = '#7dd3fc';
+          ctx.font = 'bold 34px Fredoka, sans-serif';
+          ctx.fillText('🚀 START', 128, 195);
+        } else if (type === 'FINISH') {
+          ctx.fillStyle = '#fef08a';
+          ctx.font = 'bold 34px Fredoka, sans-serif';
+          ctx.fillText('🏆 FINISH', 128, 195);
+        } else if (type === 'QUESTION') {
+          ctx.fillStyle = '#22d3ee';
+          ctx.font = 'bold 34px Fredoka, sans-serif';
+          ctx.fillText('❓ KUIS +5', 128, 195);
+        } else if (type === 'LADDER') {
+          ctx.fillStyle = '#4ade80';
+          ctx.font = 'bold 32px Fredoka, sans-serif';
+          ctx.fillText('⚡ NAIK', 128, 195);
+        } else if (type === 'SNAKE') {
+          ctx.fillStyle = '#fda4af';
+          ctx.font = 'bold 32px Fredoka, sans-serif';
+          ctx.fillText('🐍 TURUN', 128, 195);
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.anisotropy = 4;
+        return tex;
+      }
+
+      buildBoardBaseAndTiles() {
+        // Floating Cosmic Platform Frame beneath the 10x10 tiles
+        const frameGeo = new THREE.BoxGeometry(30.5, 0.8, 30.5);
+        const frameMat = new THREE.MeshStandardMaterial({
+          color: 0x090d26,
+          metalness: 0.7,
+          roughness: 0.3,
+          emissive: 0x0c1938,
+          emissiveIntensity: 0.5
+        });
+        const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+        frameMesh.position.y = -0.45;
+        frameMesh.receiveShadow = true;
+        this.boardGroup.add(frameMesh);
+
+        // Neon Rim around the board
+        const rimGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(30.8, 0.9, 30.8));
+        const rimMat = new THREE.LineBasicMaterial({ color: 0x00f0ff });
+        const rimLines = new THREE.LineSegments(rimGeo, rimMat);
+        rimLines.position.y = -0.45;
+        this.boardGroup.add(rimLines);
+
+        // Create 100 Tiles
+        const palette = ['#00f0ff', '#b829ff', '#ff2a85', '#00ff88', '#ffd700', '#38bdf8'];
+
+        for (let n = 1; n <= 100; n++) {
+          const pos = this.getTilePosition(n);
+          let type = 'NORMAL';
+          let borderHex = palette[(n - 1) % palette.length];
+
+          if (n === 1) {
+            type = 'START';
+            borderHex = '#00f0ff';
+          } else if (n === 100) {
+            type = 'FINISH';
+            borderHex = '#ffd700';
+          } else if (this.questionManager.isQuestionTile(n)) {
+            type = 'QUESTION';
+            borderHex = '#00f0ff';
+          } else if (this.snakeLadderManager.getLadderAt(n)) {
+            type = 'LADDER';
+            borderHex = '#00ff88';
+          } else if (this.snakeLadderManager.getSnakeAt(n)) {
+            type = 'SNAKE';
+            borderHex = '#ff2a85';
+          }
+
+          const topTex = this.createTileTexture(n, type, borderHex);
+          const sideMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            metalness: 0.5,
+            roughness: 0.4,
+            emissive: new THREE.Color(borderHex),
+            emissiveIntensity: type === 'NORMAL' ? 0.12 : 0.35
+          });
+          const topMat = new THREE.MeshStandardMaterial({
+            map: topTex,
+            roughness: 0.25,
+            metalness: 0.15
+          });
+
+          const tileGeo = new THREE.BoxGeometry(this.tileSize, 0.45, this.tileSize);
+          const tileMesh = new THREE.Mesh(tileGeo, [sideMat, sideMat, topMat, sideMat, sideMat, sideMat]);
+          tileMesh.position.set(pos.x, 0.12, pos.z);
+          tileMesh.receiveShadow = true;
+          tileMesh.userData = { tileNumber: n, type };
+          this.boardGroup.add(tileMesh);
+          this.tiles[n] = tileMesh;
+
+          // If Question Tile, add floating rotating Hologram Question Crystal
+          if (type === 'QUESTION') {
+            const holoGroup = new THREE.Group();
+            holoGroup.position.set(pos.x, 0.9, pos.z);
+
+            const octaGeo = new THREE.OctahedronGeometry(0.32, 0);
+            const octaMat = new THREE.MeshStandardMaterial({
+              color: 0x00f0ff,
+              emissive: 0x00f0ff,
+              emissiveIntensity: 0.8,
+              transparent: true,
+              opacity: 0.85,
+              wireframe: false
+            });
+            const octa = new THREE.Mesh(octaGeo, octaMat);
+            holoGroup.add(octa);
+
+            const ringGeo = new THREE.TorusGeometry(0.45, 0.03, 8, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            holoGroup.add(ring);
+
+            this.boardGroup.add(holoGroup);
+            this.questionHolos.push(holoGroup);
+          }
+        }
+      }
+
+      buildStartAndFinishMonuments() {
+        // START (Tile 1): Glowing Blue Planet Miniature & Launch Arch
+        const startPos = this.getTilePosition(1);
+        const startPlanetGroup = new THREE.Group();
+        startPlanetGroup.position.set(startPos.x - 1.8, 1.4, startPos.z + 1.5);
+
+        const pGeo = new THREE.SphereGeometry(0.95, 24, 24);
+        const pMat = new THREE.MeshStandardMaterial({
+          color: 0x00a8ff,
+          emissive: 0x0044aa,
+          emissiveIntensity: 0.5,
+          roughness: 0.3
+        });
+        const startPlanet = new THREE.Mesh(pGeo, pMat);
+        startPlanetGroup.add(startPlanet);
+
+        const startRingGeo = new THREE.TorusGeometry(1.45, 0.08, 12, 40);
+        const startRingMat = new THREE.MeshStandardMaterial({
+          color: 0x00f0ff,
+          emissive: 0x00f0ff,
+          emissiveIntensity: 0.6
+        });
+        const startRing = new THREE.Mesh(startRingGeo, startRingMat);
+        startRing.rotation.x = Math.PI / 2.4;
+        startPlanetGroup.add(startRing);
+
+        this.boardGroup.add(startPlanetGroup);
+        this.planets.push({ mesh: startPlanetGroup, speed: 0.01 });
+
+        // FINISH (Tile 100): Golden Planet & Futuristic Crown Station
+        const finPos = this.getTilePosition(100);
+        const finGroup = new THREE.Group();
+        finGroup.position.set(finPos.x - 1.6, 1.8, finPos.z - 1.6);
+
+        const goldGeo = new THREE.SphereGeometry(1.25, 28, 28);
+        const goldMat = new THREE.MeshStandardMaterial({
+          color: 0xffd700,
+          metalness: 0.8,
+          roughness: 0.15,
+          emissive: 0xff8800,
+          emissiveIntensity: 0.45
+        });
+        const goldPlanet = new THREE.Mesh(goldGeo, goldMat);
+        finGroup.add(goldPlanet);
+
+        const ring1 = new THREE.Mesh(
+          new THREE.TorusGeometry(1.9, 0.1, 12, 48),
+          new THREE.MeshBasicMaterial({ color: 0x00f0ff })
+        );
+        ring1.rotation.x = Math.PI / 2.2;
+        finGroup.add(ring1);
+
+        const ring2 = new THREE.Mesh(
+          new THREE.TorusGeometry(2.2, 0.06, 12, 48),
+          new THREE.MeshBasicMaterial({ color: 0xffd700 })
+        );
+        ring2.rotation.x = -Math.PI / 3;
+        finGroup.add(ring2);
+
+        this.boardGroup.add(finGroup);
+        this.planets.push({ mesh: finGroup, speed: 0.015 });
+      }
+
+      build3DLadders() {
+        this.snakeLadderManager.ladders.forEach(ladder => {
+          const startPos = this.getTilePosition(ladder.from);
+          const endPos = this.getTilePosition(ladder.to);
+
+          // Create an elevated energy bridge curve for animation
+          const midPos = new THREE.Vector3().addVectors(startPos, endPos).multiplyScalar(0.5);
+          midPos.y += 1.6;
+          this.ladderCurves[ladder.from] = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(startPos.x, 0.4, startPos.z),
+            midPos,
+            new THREE.Vector3(endPos.x, 0.4, endPos.z)
+          ]);
+
+          // Physical 3D Laser Ladder Rails & Rungs
+          const dir = new THREE.Vector3().subVectors(endPos, startPos);
+          const length = dir.length();
+          const ladderGroup = new THREE.Group();
+
+          const railMat = new THREE.MeshStandardMaterial({
+            color: ladder.color,
+            emissive: ladder.color,
+            emissiveIntensity: 0.85,
+            transparent: true,
+            opacity: 0.9
+          });
+
+          const railOffset = 0.42;
+          const railGeo = new THREE.CylinderGeometry(0.08, 0.08, length, 10);
+          railGeo.rotateX(Math.PI / 2);
+
+          const leftRail = new THREE.Mesh(railGeo, railMat);
+          leftRail.position.x = -railOffset;
+          leftRail.position.z = length / 2;
+          ladderGroup.add(leftRail);
+
+          const rightRail = new THREE.Mesh(railGeo, railMat);
+          rightRail.position.x = railOffset;
+          rightRail.position.z = length / 2;
+          ladderGroup.add(rightRail);
+
+          // Glowing Energy Rungs
+          const numRungs = Math.max(4, Math.floor(length / 1.1));
+          const rungGeo = new THREE.CylinderGeometry(0.055, 0.055, railOffset * 2, 8);
+          rungGeo.rotateZ(Math.PI / 2);
+          const rungMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+          for (let i = 1; i < numRungs; i++) {
+            const rung = new THREE.Mesh(rungGeo, rungMat);
+            rung.position.z = (i / numRungs) * length;
+            ladderGroup.add(rung);
+          }
+
+          ladderGroup.position.set(startPos.x, 0.48, startPos.z);
+          ladderGroup.lookAt(new THREE.Vector3(endPos.x, 0.48, endPos.z));
+          this.boardGroup.add(ladderGroup);
+        });
+      }
+
+      build3DSnakes() {
+        this.snakeLadderManager.snakes.forEach((snake, idx) => {
+          const headPos = this.getTilePosition(snake.from);
+          const tailPos = this.getTilePosition(snake.to);
+
+          // Create sinuous 3D S-curve points from Head (from) to Tail (to)
+          const points = [];
+          const segments = 6;
+          const dir = new THREE.Vector3().subVectors(tailPos, headPos);
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+
+          for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const p = new THREE.Vector3().lerpVectors(headPos, tailPos, t);
+            const wave = Math.sin(t * Math.PI * 2 + idx) * (i === 0 || i === segments ? 0 : 1.35);
+            p.addScaledVector(perp, wave);
+            p.y = 0.55 + Math.sin(t * Math.PI) * 0.45;
+            points.push(p);
+          }
+
+          const curve = new THREE.CatmullRomCurve3(points);
+          this.snakeCurves[snake.from] = curve;
+
+          // Tube body
+          const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.24, 12, false);
+          const tubeMat = new THREE.MeshStandardMaterial({
+            color: snake.color,
+            emissive: snake.color,
+            emissiveIntensity: 0.45,
+            roughness: 0.25,
+            metalness: 0.4
+          });
+          const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+          this.boardGroup.add(tubeMesh);
+
+          // Glowing Energy Rib Rings along the serpent body
+          const ribCount = 10;
+          for (let r = 1; r < ribCount; r++) {
+            const pt = curve.getPointAt(r / ribCount);
+            const tangent = curve.getTangentAt(r / ribCount);
+            const ribGeo = new THREE.TorusGeometry(0.28, 0.045, 8, 16);
+            const ribMat = new THREE.MeshBasicMaterial({ color: snake.accent });
+            const rib = new THREE.Mesh(ribGeo, ribMat);
+            rib.position.copy(pt);
+            rib.lookAt(pt.clone().add(tangent));
+            this.boardGroup.add(rib);
+          }
+
+          // Alien Space Dragon Head at `headPos`
+          const headGroup = new THREE.Group();
+          headGroup.position.set(headPos.x, 0.72, headPos.z);
+
+          const skullGeo = new THREE.SphereGeometry(0.46, 16, 16);
+          skullGeo.scale(1.1, 0.85, 1.35);
+          const skull = new THREE.Mesh(skullGeo, tubeMat);
+          headGroup.add(skull);
+
+          // Glowing Alien Eyes
+          const eyeGeo = new THREE.SphereGeometry(0.11, 10, 10);
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+          const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+          leftEye.position.set(-0.22, 0.15, 0.35);
+          const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+          rightEye.position.set(0.22, 0.15, 0.35);
+          headGroup.add(leftEye, rightEye);
+
+          // Energy Horns
+          const hornGeo = new THREE.ConeGeometry(0.09, 0.4, 8);
+          const hornMat = new THREE.MeshBasicMaterial({ color: snake.accent });
+          const hornL = new THREE.Mesh(hornGeo, hornMat);
+          hornL.position.set(-0.22, 0.4, -0.1);
+          hornL.rotation.x = -0.3;
+          const hornR = new THREE.Mesh(hornGeo, hornMat);
+          hornR.position.set(0.22, 0.4, -0.1);
+          hornR.rotation.x = -0.3;
+          headGroup.add(hornL, hornR);
+
+          headGroup.lookAt(points[1]);
+          this.boardGroup.add(headGroup);
+        });
+      }
+
+      buildActiveTileHighlight() {
+        const ringGeo = new THREE.RingGeometry(0.95, 1.25, 32);
+        ringGeo.rotateX(-Math.PI / 2);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0xffd700,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.85
+        });
+        this.activeTileRing = new THREE.Mesh(ringGeo, ringMat);
+        const p1 = this.getTilePosition(1);
+        this.activeTileRing.position.set(p1.x, 0.38, p1.z);
+        this.boardGroup.add(this.activeTileRing);
+      }
+
+      setActiveTile(tileNum) {
+        if (!this.activeTileRing) return;
+        const pos = this.getTilePosition(tileNum);
+        this.activeTileRing.position.set(pos.x, 0.38, pos.z);
+      }
+
+      buildCosmicEnvironment() {
+        // 1. 1800 Glowing Multi-Colored Stars
+        const starCount = 1800;
+        const starGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(starCount * 3);
+        const colors = new Float32Array(starCount * 3);
+        const starPalette = [
+          new THREE.Color(0xffffff),
+          new THREE.Color(0x00f0ff),
+          new THREE.Color(0xffd700),
+          new THREE.Color(0xff2a85),
+          new THREE.Color(0xb829ff)
+        ];
+
+        for (let i = 0; i < starCount; i++) {
+          const r = 55 + Math.random() * 120;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+          positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+          positions[i * 3 + 2] = r * Math.cos(phi);
+
+          const c = starPalette[i % starPalette.length];
+          colors[i * 3] = c.r;
+          colors[i * 3 + 1] = c.g;
+          colors[i * 3 + 2] = c.b;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const starMat = new THREE.PointsMaterial({ size: 0.75, vertexColors: true, transparent: true, opacity: 0.9 });
+        const starField = new THREE.Points(starGeo, starMat);
+        this.cosmicEnvGroup.add(starField);
+
+        // 2. Decorative Ringed Planets, Space Station, Satellite, Intergalactic Portal
+        const planetConfigs = [
+          { pos: [-28, 10, -26], radius: 4.2, color: 0x7c3aed, emissive: 0x3b0764, hasRing: true, ringColor: 0x00f0ff },
+          { pos: [30, 12, -24],  radius: 3.5, color: 0x06b6d4, emissive: 0x083344, hasRing: true, ringColor: 0xffd700 },
+          { pos: [-32, -8, 22],  radius: 3.8, color: 0xf43f5e, emissive: 0x4c0519, hasRing: false },
+          { pos: [28, -6, 26],   radius: 3.0, color: 0x10b981, emissive: 0x064e3b, hasRing: true, ringColor: 0xa7f3d0 }
+        ];
+
+        planetConfigs.forEach(cfg => {
+          const g = new THREE.Group();
+          g.position.set(...cfg.pos);
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(cfg.radius, 28, 28),
+            new THREE.MeshStandardMaterial({
+              color: cfg.color,
+              emissive: cfg.emissive,
+              emissiveIntensity: 0.5,
+              roughness: 0.4
+            })
+          );
+          g.add(mesh);
+
+          if (cfg.hasRing) {
+            const ring = new THREE.Mesh(
+              new THREE.TorusGeometry(cfg.radius * 1.65, 0.35, 12, 48),
+              new THREE.MeshStandardMaterial({
+                color: cfg.ringColor,
+                emissive: cfg.ringColor,
+                emissiveIntensity: 0.4,
+                transparent: true,
+                opacity: 0.8
+              })
+            );
+            ring.rotation.x = Math.PI / 2.5;
+            ring.rotation.y = 0.3;
+            g.add(ring);
+          }
+          this.cosmicEnvGroup.add(g);
+          this.planets.push({ mesh: g, speed: 0.003 + Math.random() * 0.004 });
+        });
+
+        // 3. Intergalactic Warp Portal / Decorative Black Hole behind the board
+        const portalGroup = new THREE.Group();
+        portalGroup.position.set(0, 14, -36);
+        for (let i = 0; i < 4; i++) {
+          const torus = new THREE.Mesh(
+            new THREE.TorusGeometry(4.5 + i * 1.1, 0.16, 16, 64),
+            new THREE.MeshBasicMaterial({
+              color: i % 2 === 0 ? 0x00f0ff : 0xff2a85
+            })
+          );
+          portalGroup.add(torus);
+        }
+        this.cosmicEnvGroup.add(portalGroup);
+        this.planets.push({ mesh: portalGroup, speed: 0.012, isPortal: true });
+
+        // 4. Passing Meteors / Comets
+        for (let m = 0; m < 4; m++) {
+          const meteorGroup = new THREE.Group();
+          const head = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(0.45, 0),
+            new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff6600, emissiveIntensity: 0.8 })
+          );
+          const tail = new THREE.Mesh(
+            new THREE.ConeGeometry(0.35, 3.2, 8),
+            new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.55 })
+          );
+          tail.rotation.z = Math.PI / 2;
+          tail.position.x = -1.6;
+          meteorGroup.add(head, tail);
+          meteorGroup.position.set(-40 + m * 20, 15 + m * 3, -25 - m * 5);
+          this.cosmicEnvGroup.add(meteorGroup);
+          this.meteors.push({
+            mesh: meteorGroup,
+            vx: 0.14 + Math.random() * 0.08,
+            vy: -0.02
+          });
+        }
+      }
+
+      updateEnvironment(time) {
+        // Rotate planets & portal
+        this.planets.forEach(p => {
+          p.mesh.rotation.y += p.speed;
+          if (p.isPortal) {
+            p.mesh.rotation.z -= p.speed * 1.5;
+          }
+        });
+
+        // Rotate question holograms
+        this.questionHolos.forEach((h, i) => {
+          h.rotation.y = time * 1.8 + i;
+          h.position.y = 0.85 + Math.sin(time * 3 + i) * 0.15;
+        });
+
+        // Pulse active tile ring
+        if (this.activeTileRing) {
+          const s = 1 + Math.sin(time * 4) * 0.1;
+          this.activeTileRing.scale.set(s, s, s);
+        }
+
+        // Move passing meteors
+        this.meteors.forEach(m => {
+          m.mesh.position.x += m.vx;
+          m.mesh.position.y += m.vy;
+          if (m.mesh.position.x > 55) {
+            m.mesh.position.x = -55;
+            m.mesh.position.y = 14 + Math.random() * 12;
+          }
+        });
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 8. PLAYER MANAGER & 3D CHIBI MECHA ROBOT BUILDER
+     *    (Inspired by the reference Black/Pearl/Gold Armored Chibi Robot)
+     * ============================================================================
+     */
+    class PlayerManager {
+      constructor(scene, boardManager, starBonusManager) {
+        this.scene = scene;
+        this.boardManager = boardManager;
+        this.starBonusManager = starBonusManager;
+
+        this.robotPresets = [
+          {
+            id: 'gold',
+            name: 'Gold Mecha',
+            defaultPlayerName: 'Kapten Gold',
+            primaryHex: 0x18181b,   // Obsidian Black armor like reference
+            secondaryHex: 0xf8fafc, // Pearl White/Silver inner joints
+            trimHex: 0xffd700,      // Royal Gold trim & pauldrons
+            eyeHex: 0xffea00,       // Glowing Golden Yellow eyes
+            badgeColor: '#ffd700'
+          },
+          {
+            id: 'blue',
+            name: 'Blue Mecha',
+            defaultPlayerName: 'Kapten Cyber',
+            primaryHex: 0x0284c7,
+            secondaryHex: 0xf8fafc,
+            trimHex: 0x00f0ff,
+            eyeHex: 0x38bdf8,
+            badgeColor: '#00f0ff'
+          },
+          {
+            id: 'green',
+            name: 'Green Mecha',
+            defaultPlayerName: 'Kapten Emerald',
+            primaryHex: 0x059669,
+            secondaryHex: 0xf8fafc,
+            trimHex: 0xfacc15,
+            eyeHex: 0x4ade80,
+            badgeColor: '#00ff88'
+          },
+          {
+            id: 'red',
+            name: 'Red Mecha',
+            defaultPlayerName: 'Kapten Blaze',
+            primaryHex: 0xe11d48,
+            secondaryHex: 0xf8fafc,
+            trimHex: 0xffd700,
+            eyeHex: 0xfb923c,
+            badgeColor: '#ff2a85'
+          }
+        ];
+
+        this.players = [];
+        this.currentTurnIndex = 0;
+      }
+
+      /**
+       * Builds an articulated 3D Chibi Mecha Robot matching the reference image:
+       * - Big expressive helmet with V-crest & side ear-comms
+       * - Curved glowing happy eyes inside dark visor
+       * - Armored chest with gold V-trim & chest shield emblem
+       * - Pauldrons, chunky gauntlets & armored boots with knee globes
+       */
+      createChibiRobot3D(preset) {
+        const root = new THREE.Group();
+
+        const armorMat = new THREE.MeshStandardMaterial({
+          color: preset.primaryHex,
+          metalness: 0.65,
+          roughness: 0.25
+        });
+        const pearlMat = new THREE.MeshStandardMaterial({
+          color: preset.secondaryHex,
+          metalness: 0.4,
+          roughness: 0.2
+        });
+        const goldTrimMat = new THREE.MeshStandardMaterial({
+          color: preset.trimHex,
+          metalness: 0.85,
+          roughness: 0.15,
+          emissive: preset.trimHex,
+          emissiveIntensity: 0.22
+        });
+        const visorMat = new THREE.MeshStandardMaterial({
+          color: 0x05070e,
+          metalness: 0.9,
+          roughness: 0.1
+        });
+        const eyeGlowMat = new THREE.MeshBasicMaterial({
+          color: preset.eyeHex
+        });
+
+        //Body Pivot (for bounce/breathing/jump)
+        const bodyPivot = new THREE.Group();
+        bodyPivot.position.y = 0.55;
+        root.add(bodyPivot);
+
+        // 1. TORSO & CHEST SHIELD
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.52, 0.38), armorMat);
+        torso.position.y = 0.25;
+        torso.castShadow = true;
+        bodyPivot.add(torso);
+
+        // Gold V-Frame on Chest
+        const chestV = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.41), goldTrimMat);
+        chestV.position.set(0, 0.34, 0);
+        bodyPivot.add(chestV);
+
+        // Shield Emblem on Left Chest (like reference image!)
+        const shieldEmblem = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.05), goldTrimMat);
+        shieldEmblem.position.set(0.14, 0.32, 0.2);
+        bodyPivot.add(shieldEmblem);
+
+        // Jetpack with Dual Thrusters on Back
+        const jetpack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.36, 0.22), goldTrimMat);
+        jetpack.position.set(0, 0.28, -0.25);
+        bodyPivot.add(jetpack);
+
+        // 2. LARGE CHIBI EXPRESSIVE HEAD
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 0.82, 0);
+        bodyPivot.add(headGroup);
+
+        const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 24), armorMat);
+        helmet.scale.set(1.08, 0.96, 1.02);
+        helmet.castShadow = true;
+        headGroup.add(helmet);
+
+        // Gold Forehead Crest / V-Fin
+        const crest = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.38, 4), goldTrimMat);
+        crest.position.set(0, 0.42, 0.26);
+        crest.rotation.x = 0.25;
+        crest.rotation.y = Math.PI / 4;
+        headGroup.add(crest);
+
+        // Gold Helmet Ridge Arch
+        const ridge = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.055, 10, 24, Math.PI), goldTrimMat);
+        ridge.rotation.y = Math.PI / 2;
+        ridge.rotation.x = -0.2;
+        headGroup.add(ridge);
+
+        // Ear Comms with Wings
+        const earGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.12, 16);
+        earGeo.rotateZ(Math.PI / 2);
+        const earL = new THREE.Mesh(earGeo, goldTrimMat);
+        earL.position.set(-0.48, 0, 0);
+        const earR = new THREE.Mesh(earGeo, goldTrimMat);
+        earR.position.set(0.48, 0, 0);
+        headGroup.add(earL, earR);
+
+        // Dark Visor Plate
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.3, 0.25), visorMat);
+        visor.position.set(0, 0.02, 0.34);
+        headGroup.add(visor);
+
+        // Silver Mouthplate
+        const mouthplate = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.12, 0.24), pearlMat);
+        mouthplate.position.set(0, -0.18, 0.33);
+        headGroup.add(mouthplate);
+
+        // Glowing Happy Curved Eyes
+        const eyeGeo = new THREE.TorusGeometry(0.085, 0.028, 8, 16, Math.PI);
+        const eyeL = new THREE.Mesh(eyeGeo, eyeGlowMat);
+        eyeL.position.set(-0.15, 0.02, 0.475);
+        const eyeR = new THREE.Mesh(eyeGeo, eyeGlowMat);
+        eyeR.position.set(0.15, 0.02, 0.475);
+        headGroup.add(eyeL, eyeR);
+
+        // 3. ARTICULATED ARMS WITH GOLD PAULDRONS & GAUNTLETS
+        const buildArm = (isLeft) => {
+          const armGroup = new THREE.Group();
+          const side = isLeft ? -1 : 1;
+          armGroup.position.set(side * 0.42, 0.42, 0);
+
+          // Shoulder Pauldron
+          const pauldron = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 14), armorMat);
+          pauldron.scale.set(1.1, 0.85, 1.1);
+          const pauldronRim = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.035, 8, 16), goldTrimMat);
+          pauldronRim.rotation.x = Math.PI / 2;
+          armGroup.add(pauldron, pauldronRim);
+
+          // Pearl Upper Arm
+          const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10), pearlMat);
+          upperArm.position.y = -0.15;
+          armGroup.add(upperArm);
+
+          // Chunky Forearm Gauntlet & Fist
+          const gauntlet = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.24), armorMat);
+          gauntlet.position.y = -0.32;
+          const cuff = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.26), goldTrimMat);
+          cuff.position.y = -0.22;
+          armGroup.add(gauntlet, cuff);
+
+          return armGroup;
+        };
+
+        const leftArm = buildArm(true);
+        const rightArm = buildArm(false);
+        bodyPivot.add(leftArm, rightArm);
+
+        // 4. ARTICULATED LEGS WITH KNEE ORBS & CHUNKY BOOTS
+        const buildLeg = (isLeft) => {
+          const legGroup = new THREE.Group();
+          const side = isLeft ? -1 : 1;
+          legGroup.position.set(side * 0.18, 0, 0);
+
+          // Pearl Thigh
+          const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.22, 10), pearlMat);
+          thigh.position.y = -0.12;
+          legGroup.add(thigh);
+
+          // Glowing Knee Orb
+          const kneeOrb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), goldTrimMat);
+          kneeOrb.position.set(0, -0.22, 0.06);
+          legGroup.add(kneeOrb);
+
+          // Armored Boot
+          const boot = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 0.36), armorMat);
+          boot.position.set(0, -0.38, 0.04);
+          const bootToe = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.1, 0.38), goldTrimMat);
+          bootToe.position.set(0, -0.47, 0.05);
+          legGroup.add(boot, bootToe);
+
+          return legGroup;
+        };
+
+        const leftLeg = buildLeg(true);
+        const rightLeg = buildLeg(false);
+        bodyPivot.add(leftLeg, rightLeg);
+
+        // Base Ring beneath the robot
+        const baseRing = new THREE.Mesh(
+          new THREE.RingGeometry(0.38, 0.5, 24),
+          new THREE.MeshBasicMaterial({ color: preset.trimHex, side: THREE.DoubleSide })
+        );
+        baseRing.rotation.x = -Math.PI / 2;
+        baseRing.position.y = 0.02;
+        root.add(baseRing);
+
+        root.scale.set(0.88, 0.88, 0.88);
+
+        root.userData.parts = {
+          bodyPivot,
+          headGroup,
+          leftArm,
+          rightArm,
+          leftLeg,
+          rightLeg,
+          eyeL,
+          eyeR
+        };
+        root.userData.animState = 'IDLE';
+        root.userData.animPhase = Math.random() * 10;
+
+        return root;
+      }
+
+      clearPlayersFromScene() {
+        this.players.forEach(p => {
+          if (p.mesh) this.scene.remove(p.mesh);
+        });
+        this.players = [];
+      }
+
+      setupPlayers(configs) {
+        this.clearPlayersFromScene();
+        this.currentTurnIndex = 0;
+
+        configs.forEach((cfg, index) => {
+          const preset = this.robotPresets.find(r => r.id === cfg.robotId) || this.robotPresets[index % 4];
+          const mesh = this.createChibiRobot3D(preset);
+
+          const player = {
+            id: index,
+            name: cfg.name.trim() || preset.defaultPlayerName,
+            isAI: !!cfg.isAI,
+            robotId: preset.id,
+            preset,
+            tile: 1,
+            score: 0,
+            starBonuses: this.starBonusManager.createInitialInventory(),
+            history: ['Memulai petualangan di Petak 1'],
+            mesh
+          };
+
+          this.scene.add(mesh);
+          this.players.push(player);
+        });
+
+        this.layoutRobotsOnTiles();
+      }
+
+      layoutRobotsOnTiles() {
+        // Group players by tile so multiple robots on the same tile stand neatly side-by-side
+        const byTile = {};
+        this.players.forEach(p => {
+          if (!byTile[p.tile]) byTile[p.tile] = [];
+          byTile[p.tile].push(p);
+        });
+
+        Object.keys(byTile).forEach(tKey => {
+          const group = byTile[tKey];
+          const basePos = this.boardManager.getTilePosition(Number(tKey));
+          const offsets = group.length === 1
+            ? [[0, 0]]
+            : [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]];
+
+          group.forEach((player, idx) => {
+            const [ox, oz] = offsets[idx % offsets.length];
+            player.mesh.position.set(basePos.x + ox, basePos.y, basePos.z + oz);
+          });
+        });
+      }
+
+      getCurrentPlayer() {
+        return this.players[this.currentTurnIndex];
+      }
+
+      nextTurn() {
+        this.currentTurnIndex = (this.currentTurnIndex + 1) % this.players.length;
+        return this.getCurrentPlayer();
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 9. CAMERA CONTROLLER (360° OrbitControls, Presets, Zoom, Follow Robot)
+     * ============================================================================
+     */
+    class CameraController {
+      constructor(camera, domElement) {
+        this.camera = camera;
+        this.controls = new THREE.OrbitControls(camera, domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.06;
+        this.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+        this.controls.minDistance = 8;
+        this.controls.maxDistance = 68;
+
+        this.followRobot = false;
+        this.targetPos = new THREE.Vector3(0, 26, 28);
+        this.targetLookAt = new THREE.Vector3(0, 0, 0);
+        this.isTransitioning = false;
+
+        this.setPreset('iso');
+      }
+
+      setPreset(mode) {
+        this.followRobot = false;
+        this.targetLookAt.set(0, 0, 0);
+
+        switch (mode) {
+          case 'top':
+            this.targetPos.set(0, 42, 0.01);
+            break;
+          case 'front':
+            this.targetPos.set(0, 16, 34);
+            break;
+          case 'side':
+            this.targetPos.set(34, 16, 0);
+            break;
+          case 'back':
+            this.targetPos.set(0, 16, -34);
+            break;
+          case 'iso':
+          case 'reset':
+          default:
+            this.targetPos.set(0, 25, 28);
+            break;
+        }
+        this.isTransitioning = true;
+      }
+
+      zoom(delta) {
+        const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+        const len = Math.max(10, Math.min(60, dir.length() + delta));
+        dir.normalize().multiplyScalar(len);
+        this.camera.position.copy(this.controls.target).add(dir);
+      }
+
+      focusOnPosition(pos) {
+        if (!this.followRobot) return;
+        this.targetLookAt.set(pos.x, pos.y + 0.8, pos.z);
+        this.targetPos.set(pos.x, pos.y + 11, pos.z + 13);
+        this.isTransitioning = true;
+      }
+
+      update() {
+        if (this.isTransitioning) {
+          this.camera.position.lerp(this.targetPos, 0.08);
+          this.controls.target.lerp(this.targetLookAt, 0.1);
+          if (this.camera.position.distanceTo(this.targetPos) < 0.15) {
+            this.isTransitioning = false;
+          }
+        }
+        this.controls.update();
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 10. ANIMATION MANAGER (Robot Articulation, Tile-by-Tile Walk, Curve Slide & Particles)
+     * ============================================================================
+     */
+    class AnimationManager {
+      constructor(scene, boardManager, audioManager, cameraController) {
+        this.scene = scene;
+        this.boardManager = boardManager;
+        this.audioManager = audioManager;
+        this.cameraController = cameraController;
+        this.particles = [];
+      }
+
+      spawnBurstParticles(pos, colorHex = 0xffd700, count = 28) {
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        const geo = new THREE.OctahedronGeometry(0.14, 0);
+        const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+        const velocities = [];
+        for (let i = 0; i < count; i++) {
+          const m = new THREE.Mesh(geo, mat);
+          group.add(m);
+          velocities.push(new THREE.Vector3(
+            (Math.random() - 0.5) * 0.28,
+            Math.random() * 0.25 + 0.06,
+            (Math.random() - 0.5) * 0.28
+          ));
+        }
+
+        this.scene.add(group);
+        this.particles.push({ group, velocities, life: 1.0 });
+      }
+
+      updateRobotRig(player, time) {
+        const mesh = player.mesh;
+        if (!mesh || !mesh.userData.parts) return;
+        const { bodyPivot, headGroup, leftArm, rightArm, leftLeg, rightLeg } = mesh.userData.parts;
+        const state = mesh.userData.animState || 'IDLE';
+        const t = time * 5 + mesh.userData.animPhase;
+
+        if (state === 'IDLE') {
+          bodyPivot.position.y = 0.55 + Math.sin(t * 0.6) * 0.04;
+          headGroup.rotation.y = Math.sin(t * 0.4) * 0.12;
+          headGroup.rotation.z = 0;
+          leftArm.rotation.x = Math.sin(t * 0.6) * 0.15;
+          rightArm.rotation.x = -Math.sin(t * 0.6) * 0.15;
+          leftLeg.rotation.x = 0;
+          rightLeg.rotation.x = 0;
+        } else if (state === 'WALK') {
+          bodyPivot.position.y = 0.58 + Math.abs(Math.sin(t * 3.2)) * 0.12;
+          leftArm.rotation.x = Math.sin(t * 3.2) * 0.75;
+          rightArm.rotation.x = -Math.sin(t * 3.2) * 0.75;
+          leftLeg.rotation.x = -Math.sin(t * 3.2) * 0.75;
+          rightLeg.rotation.x = Math.sin(t * 3.2) * 0.75;
+        } else if (state === 'VICTORY') {
+          bodyPivot.position.y = 0.65 + Math.abs(Math.sin(t * 2.5)) * 0.26;
+          leftArm.rotation.x = -2.6;
+          rightArm.rotation.x = -2.6;
+          headGroup.rotation.y = Math.sin(t * 2) * 0.3;
+        } else if (state === 'DISAPPOINTED') {
+          bodyPivot.position.y = 0.48;
+          headGroup.rotation.x = 0.35;
+          headGroup.rotation.y = Math.sin(t * 2.2) * 0.35;
+          leftArm.rotation.x = 0.3;
+          rightArm.rotation.x = 0.3;
+        } else if (state === 'SPECIAL') {
+          mesh.rotation.y += 0.22;
+          bodyPivot.position.y = 0.75;
+          leftArm.rotation.x = -2.2;
+          rightArm.rotation.x = -2.2;
+        }
+      }
+
+      updateAll(players, time) {
+        players.forEach(p => this.updateRobotRig(p, time));
+
+        // Update burst particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.life -= 0.025;
+          p.group.children.forEach((child, idx) => {
+            child.position.add(p.velocities[idx]);
+            p.velocities[idx].y -= 0.008;
+            child.scale.setScalar(Math.max(0.01, p.life));
+          });
+          if (p.life <= 0) {
+            this.scene.remove(p.group);
+            this.particles.splice(i, 1);
+          }
+        }
+      }
+
+      /**
+       * Walks robot tile-by-tile (no teleportation!)
+       * Supports exact-100 finish rule: if steps exceed 100, bounces back from 100.
+       */
+      async animateStepByStep(player, steps, onEachTile) {
+        const mesh = player.mesh;
+        mesh.userData.animState = 'WALK';
+        let direction = 1; // 1 = forward toward 100, -1 = bounce backward if exceeding 100
+
+        for (let s = 0; s < steps; s++) {
+          const fromTile = player.tile;
+          if (fromTile === 100 && direction === 1) {
+            direction = -1;
+          }
+          const toTile = Math.max(1, Math.min(100, fromTile + direction));
+
+          const startPos = mesh.position.clone();
+          const endPos = this.boardManager.getTilePosition(toTile);
+
+          // Face direction of movement
+          mesh.lookAt(new THREE.Vector3(endPos.x, mesh.position.y, endPos.z));
+          this.audioManager.playStep();
+
+          await new Promise(resolve => {
+            const duration = 310;
+            const t0 = performance.now();
+            const stepLoop = () => {
+              try {
+                const elapsed = performance.now() - t0;
+                const p = Math.max(0, Math.min(1, elapsed / duration));
+                mesh.position.x = THREE.MathUtils.lerp(startPos.x, endPos.x, p);
+                mesh.position.z = THREE.MathUtils.lerp(startPos.z, endPos.z, p);
+                mesh.position.y = endPos.y + Math.sin(p * Math.PI) * 0.75;
+
+                if (p < 1) {
+                  requestAnimationFrame(stepLoop);
+                } else {
+                  player.tile = toTile;
+                  this.boardManager.setActiveTile(toTile);
+                  this.cameraController.focusOnPosition(endPos);
+                  this.spawnBurstParticles(endPos, player.preset.trimHex, 8);
+                  if (onEachTile) onEachTile(toTile);
+                  resolve();
+                }
+              } catch (err) {
+                console.error('Step animation error:', err);
+                player.tile = toTile;
+                mesh.position.copy(endPos);
+                resolve();
+              }
+            };
+            requestAnimationFrame(stepLoop);
+          });
+        }
+
+        mesh.userData.animState = 'IDLE';
+      }
+
+      /**
+       * Smoothly animates robot climbing a 3D Laser Ladder or sliding down a 3D Cosmic Serpent
+       */
+      async animateAlongCurve(player, curve, destTile, isLadder = true) {
+        const mesh = player.mesh;
+        const startPos = mesh.position.clone();
+        const endPos = this.boardManager.getTilePosition(destTile);
+
+        mesh.userData.animState = isLadder ? 'SPECIAL' : 'DISAPPOINTED';
+        if (isLadder) {
+          this.audioManager.playLaserLadder();
+        } else {
+          this.audioManager.playSnakeSlide();
+        }
+
+        await new Promise(resolve => {
+          const duration = 1250;
+          const t0 = performance.now();
+          const curveLoop = () => {
+            try {
+              const elapsed = performance.now() - t0;
+              // Clamp p strictly within [0, 1] so CatmullRomCurve3.getPointAt never receives a negative value
+              const p = Math.max(0, Math.min(1, elapsed / duration));
+
+              let pt;
+              if (curve && typeof curve.getPointAt === 'function') {
+                pt = curve.getPointAt(p);
+              } else {
+                pt = new THREE.Vector3().lerpVectors(startPos, endPos, p);
+                pt.y += Math.sin(p * Math.PI) * 1.2;
+              }
+
+              if (pt) {
+                mesh.position.copy(pt);
+                this.cameraController.focusOnPosition(pt);
+
+                if (Math.random() < 0.45) {
+                  this.spawnBurstParticles(pt, isLadder ? 0x00ff88 : 0xff2a85, 3);
+                }
+              }
+
+              if (p < 1) {
+                requestAnimationFrame(curveLoop);
+              } else {
+                player.tile = destTile;
+                mesh.position.copy(endPos);
+                this.boardManager.setActiveTile(destTile);
+                mesh.userData.animState = 'IDLE';
+                if (player.mesh.userData.parts) {
+                  player.mesh.userData.parts.headGroup.rotation.set(0, 0, 0);
+                }
+                resolve();
+              }
+            } catch (err) {
+              console.error('Curve animation error:', err);
+              player.tile = destTile;
+              mesh.position.copy(endPos);
+              this.boardManager.setActiveTile(destTile);
+              mesh.userData.animState = 'IDLE';
+              if (player.mesh.userData.parts) {
+                player.mesh.userData.parts.headGroup.rotation.set(0, 0, 0);
+              }
+              resolve();
+            }
+          };
+          requestAnimationFrame(curveLoop);
+        });
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 11. MAIN GAME ENGINE (Coordinates 3D Renderer, UI Screens, Turn State Machine & LocalStorage)
+     * ============================================================================
+     */
+    class GameEngine {
+      constructor() {
+        this.container = document.getElementById('webgl-container');
+        this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.FogExp2(0x050514, 0.0065);
+
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+
+        this.container.appendChild(this.renderer.domElement);
+
+        this.setupLights();
+
+        // Instantiate Managers
+        this.audioManager = new AudioManager();
+        this.scoreManager = new ScoreManager();
+        this.starBonusManager = new StarBonusManager();
+        this.cardManager = new CardManager();
+        this.questionManager = new QuestionManager();
+        this.snakeLadderManager = new SnakeLadderManager();
+        this.boardManager = new BoardManager(this.scene, this.questionManager, this.snakeLadderManager);
+        this.playerManager = new PlayerManager(this.scene, this.boardManager, this.starBonusManager);
+        this.cameraController = new CameraController(this.camera, this.renderer.domElement);
+        this.animationManager = new AnimationManager(
+          this.scene,
+          this.boardManager,
+          this.audioManager,
+          this.cameraController
+        );
+
+        this.boardManager.buildAll();
+
+        // Setup default showcase robots on Tile 1 for the 3D background
+        this.selectedPlayerCount = 2;
+        this.setupDraft = [
+          { name: 'Kapten Gold', robotId: 'gold', isAI: false },
+          { name: 'Kapten Cyber', robotId: 'blue', isAI: false },
+          { name: 'Kapten Emerald', robotId: 'green', isAI: false },
+          { name: 'Kapten Blaze', robotId: 'red', isAI: false }
+        ];
+        this.playerManager.setupPlayers([this.setupDraft[0], this.setupDraft[1]]);
+
+        this.isBusy = false;
+        this.gameActive = false;
+        this.clock = new THREE.Clock();
+
+        this.bindUIEvents();
+        this.checkSavedGame();
+
+        window.addEventListener('resize', () => this.onResize());
+        this.animate();
+      }
+
+      setupLights() {
+        const ambient = new THREE.AmbientLight(0xdbeafe, 0.85);
+        this.scene.add(ambient);
+
+        const mainDir = new THREE.DirectionalLight(0xffffff, 1.15);
+        mainDir.position.set(18, 35, 22);
+        mainDir.castShadow = true;
+        this.scene.add(mainDir);
+
+        const neonCyanLight = new THREE.PointLight(0x00f0ff, 1.2, 60);
+        neonCyanLight.position.set(-18, 12, 18);
+        this.scene.add(neonCyanLight);
+
+        const neonPurpleLight = new THREE.PointLight(0xb829ff, 1.2, 60);
+        neonPurpleLight.position.set(18, 12, -18);
+        this.scene.add(neonPurpleLight);
+      }
+
+      onResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      logEvent(msg) {
+        const logEl = document.getElementById('game-event-log');
+        if (!logEl) return;
+        const item = document.createElement('div');
+        item.innerHTML = `• ${msg}`;
+        logEl.prepend(item);
+      }
+
+      showFloatingBanner(title, subtitle, duration = 2200) {
+        const banner = document.getElementById('floating-banner');
+        document.getElementById('floating-banner-title').textContent = title;
+        document.getElementById('floating-banner-sub').textContent = subtitle;
+        banner.classList.remove('hidden');
+        setTimeout(() => banner.classList.add('hidden'), duration);
+      }
+
+      /* ------------------------------------------------------------------
+       * LOCAL STORAGE SAVE & RESUME
+       * ------------------------------------------------------------------ */
+      saveGameState() {
+        if (!this.gameActive) return;
+        try {
+          const data = {
+            currentTurnIndex: this.playerManager.currentTurnIndex,
+            deck: this.cardManager.deck,
+            players: this.playerManager.players.map(p => ({
+              name: p.name,
+              isAI: p.isAI,
+              robotId: p.robotId,
+              tile: p.tile,
+              score: p.score,
+              starBonuses: p.starBonuses,
+              history: p.history
+            }))
+          };
+          localStorage.setItem('GALAXY_ADVENTURE_SAVE_V1', JSON.stringify(data));
+        } catch (e) {
+          // Ignore storage quota issues
+        }
+      }
+
+      checkSavedGame() {
+        try {
+          const raw = localStorage.getItem('GALAXY_ADVENTURE_SAVE_V1');
+          const banner = document.getElementById('saved-game-banner');
+          if (!raw) {
+            banner.classList.add('hidden');
+            return;
+          }
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.players) && data.players.length > 0) {
+            banner.classList.remove('hidden');
+            const names = data.players.map(p => `${p.name} (Petak ${p.tile})`).join(', ');
+            document.getElementById('saved-game-info').textContent = names;
+          }
+        } catch (e) {
+          // Ignore corrupted save
+        }
+      }
+
+      resumeSavedGame() {
+        try {
+          const raw = localStorage.getItem('GALAXY_ADVENTURE_SAVE_V1');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          this.audioManager.playClick();
+          this.audioManager.startBGM();
+
+          this.playerManager.setupPlayers(data.players);
+          data.players.forEach((savedP, idx) => {
+            const p = this.playerManager.players[idx];
+            p.tile = savedP.tile;
+            p.score = savedP.score;
+            p.starBonuses = savedP.starBonuses;
+            p.history = savedP.history || [];
+          });
+          this.playerManager.currentTurnIndex = data.currentTurnIndex || 0;
+          this.playerManager.layoutRobotsOnTiles();
+          if (Array.isArray(data.deck) && data.deck.length > 0) {
+            this.cardManager.deck = data.deck;
+          }
+
+          document.getElementById('screen-main-menu').classList.add('hidden');
+          document.getElementById('game-hud').classList.remove('hidden');
+          document.getElementById('hud-turn-banner').classList.remove('hidden');
+          document.getElementById('btn-back-menu').classList.remove('hidden');
+
+          this.gameActive = true;
+          this.isBusy = false;
+          this.updateHUD();
+          this.boardManager.setActiveTile(this.playerManager.getCurrentPlayer().tile);
+          this.checkIfAITurn();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      /* ------------------------------------------------------------------
+       * UI BINDINGS & SETUP SCREEN
+       * ------------------------------------------------------------------ */
+      bindUIEvents() {
+        // Main Menu buttons
+        document.getElementById('btn-menu-start').addEventListener('click', () => {
+          this.audioManager.playClick();
+          document.getElementById('screen-main-menu').classList.add('hidden');
+          document.getElementById('screen-player-setup').classList.remove('hidden');
+          this.renderPlayerSetupGrid();
+        });
+
+        document.getElementById('btn-resume-game').addEventListener('click', () => {
+          this.resumeSavedGame();
+        });
+
+        document.getElementById('btn-menu-explore').addEventListener('click', () => {
+          this.audioManager.playClick();
+          document.getElementById('screen-main-menu').classList.add('hidden');
+          document.getElementById('btn-back-menu').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-back-menu').addEventListener('click', () => {
+          this.audioManager.playClick();
+          this.gameActive = false;
+          document.getElementById('game-hud').classList.add('hidden');
+          document.getElementById('hud-turn-banner').classList.add('hidden');
+          document.getElementById('btn-back-menu').classList.add('hidden');
+          document.getElementById('screen-main-menu').classList.remove('hidden');
+          this.checkSavedGame();
+        });
+
+        document.getElementById('btn-setup-back').addEventListener('click', () => {
+          this.audioManager.playClick();
+          document.getElementById('screen-player-setup').classList.add('hidden');
+          document.getElementById('screen-main-menu').classList.remove('hidden');
+        });
+
+        // Player count toggle buttons
+        document.querySelectorAll('.pcount-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.audioManager.playClick();
+            this.selectedPlayerCount = Number(btn.dataset.pcount);
+            document.querySelectorAll('.pcount-btn').forEach(b => {
+              const active = Number(b.dataset.pcount) === this.selectedPlayerCount;
+              b.className = active
+                ? 'pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-yellow-400 bg-yellow-400/20 text-yellow-200'
+                : 'pcount-btn btn-cosmic py-2.5 rounded-xl font-orbitron font-bold text-sm sm:text-base border-2 border-cyan-500/40 bg-slate-900/70 text-slate-300';
+            });
+            document.getElementById('ai-toggle-box').classList.toggle('hidden', this.selectedPlayerCount !== 1);
+            this.renderPlayerSetupGrid();
+          });
+        });
+
+        // Default select 2 players on open
+        document.querySelector('.pcount-btn[data-pcount="2"]').click();
+
+        // Launch Game button
+        document.getElementById('btn-launch-game').addEventListener('click', () => {
+          this.startNewAdventure();
+        });
+
+        // Draw Card triggers (both button and clicking the 3D deck stack)
+        document.getElementById('btn-draw-card').addEventListener('click', () => this.handleDrawCardClick());
+        document.getElementById('visual-card-deck').addEventListener('click', () => this.handleDrawCardClick());
+
+        // Camera 360 Preset buttons
+        document.querySelectorAll('.cam-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.audioManager.playClick();
+            this.cameraController.setPreset(btn.dataset.cam);
+            document.getElementById('btn-cam-follow').textContent = '🎯 Ikuti Robot: OFF';
+          });
+        });
+
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+          this.audioManager.playClick();
+          this.cameraController.zoom(-4);
+        });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+          this.audioManager.playClick();
+          this.cameraController.zoom(4);
+        });
+
+        document.getElementById('btn-cam-follow').addEventListener('click', () => {
+          this.audioManager.playClick();
+          this.cameraController.followRobot = !this.cameraController.followRobot;
+          document.getElementById('btn-cam-follow').textContent =
+            `🎯 Ikuti Robot: ${this.cameraController.followRobot ? 'ON' : 'OFF'}`;
+          if (this.cameraController.followRobot) {
+            const p = this.playerManager.getCurrentPlayer();
+            if (p) this.cameraController.focusOnPosition(p.mesh.position);
+          }
+        });
+
+        // Mobile sidebar toggle
+        document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+          const sb = document.getElementById('player-sidebar');
+          sb.classList.toggle('-translate-x-[120%]');
+        });
+
+        // Audio toggle
+        document.getElementById('btn-audio-toggle').addEventListener('click', () => {
+          const muted = this.audioManager.toggleMute();
+          document.getElementById('btn-audio-toggle').textContent = muted ? '🔇' : '🔊';
+        });
+
+        // Guide & Settings Modals
+        const openGuide = () => {
+          this.audioManager.playClick();
+          document.getElementById('modal-guide').classList.remove('hidden');
+        };
+        document.getElementById('btn-open-guide').addEventListener('click', openGuide);
+        document.getElementById('btn-menu-guide').addEventListener('click', openGuide);
+        document.getElementById('btn-close-guide').addEventListener('click', () => {
+          this.audioManager.playClick();
+          document.getElementById('modal-guide').classList.add('hidden');
+        });
+
+        const openSettings = () => {
+          this.audioManager.playClick();
+          document.getElementById('modal-settings').classList.remove('hidden');
+        };
+        document.getElementById('btn-open-settings').addEventListener('click', openSettings);
+        document.getElementById('btn-menu-settings').addEventListener('click', openSettings);
+        document.getElementById('btn-close-settings').addEventListener('click', () => {
+          document.getElementById('modal-settings').classList.add('hidden');
+        });
+        document.getElementById('btn-save-settings').addEventListener('click', () => {
+          this.audioManager.playClick();
+          document.getElementById('modal-settings').classList.add('hidden');
+        });
+
+        document.getElementById('slider-volume').addEventListener('input', (e) => {
+          const val = Number(e.target.value);
+          document.getElementById('lbl-volume-val').textContent = `${val}%`;
+          this.audioManager.setVolume(val / 100);
+        });
+
+        document.getElementById('chk-bgm').addEventListener('change', (e) => {
+          this.audioManager.bgmEnabled = e.target.checked;
+          if (e.target.checked) this.audioManager.startBGM();
+          else this.audioManager.stopBGM();
+        });
+
+        document.getElementById('chk-autofollow').addEventListener('change', (e) => {
+          this.cameraController.followRobot = e.target.checked;
+          document.getElementById('btn-cam-follow').textContent =
+            `🎯 Ikuti Robot: ${this.cameraController.followRobot ? 'ON' : 'OFF'}`;
+        });
+
+        document.getElementById('btn-clear-save').addEventListener('click', () => {
+          localStorage.removeItem('GALAXY_ADVENTURE_SAVE_V1');
+          this.checkSavedGame();
+          this.showFloatingBanner('Data Dihapus', 'Progres permainan tersimpan telah direset.');
+        });
+
+        // Victory Screen Buttons
+        document.getElementById('btn-victory-replay').addEventListener('click', () => {
+          document.getElementById('modal-victory').classList.add('hidden');
+          this.startNewAdventure();
+        });
+        document.getElementById('btn-victory-inspect').addEventListener('click', () => {
+          document.getElementById('modal-victory').classList.add('hidden');
+        });
+        document.getElementById('btn-victory-menu').addEventListener('click', () => {
+          document.getElementById('modal-victory').classList.add('hidden');
+          document.getElementById('game-hud').classList.add('hidden');
+          document.getElementById('hud-turn-banner').classList.add('hidden');
+          document.getElementById('btn-back-menu').classList.add('hidden');
+          document.getElementById('screen-main-menu').classList.remove('hidden');
+          this.checkSavedGame();
+        });
+      }
+
+      renderPlayerSetupGrid() {
+        const grid = document.getElementById('setup-players-grid');
+        grid.innerHTML = '';
+
+        for (let i = 0; i < this.selectedPlayerCount; i++) {
+          const cfg = this.setupDraft[i];
+          const card = document.createElement('div');
+          card.className = 'p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 space-y-2.5';
+
+          const robotButtonsHtml = this.playerManager.robotPresets.map(preset => {
+            const isSelected = cfg.robotId === preset.id;
+            return `
+              <button type="button" data-pidx="${i}" data-rid="${preset.id}"
+                class="robot-pick-btn btn-cosmic p-2 rounded-xl border-2 flex flex-col items-center gap-1 ${
+                  isSelected ? 'border-yellow-400 bg-yellow-400/20' : 'border-slate-700 bg-slate-950/60'
+                }">
+                <span class="w-4 h-4 rounded-full border border-white" style="background:${preset.badgeColor}"></span>
+                <span class="text-[10px] font-bold text-slate-100">${preset.name.split(' ')[0]}</span>
+              </button>
+            `;
+          }).join('');
+
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="font-orbitron font-bold text-xs text-yellow-300">PEMAIN ${i + 1}</span>
+              <span class="text-[11px] text-cyan-300 font-semibold">🤖 Robot 3D</span>
+            </div>
+            <div>
+              <input type="text" data-name-idx="${i}" value="${cfg.name}" maxlength="16"
+                placeholder="Nama Pemain ${i + 1}"
+                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-cyan-500/50 text-white font-bold text-sm focus:outline-none focus:border-yellow-400" />
+            </div>
+            <div class="grid grid-cols-4 gap-1.5">
+              ${robotButtonsHtml}
+            </div>
+          `;
+          grid.appendChild(card);
+        }
+
+        // Bind input & robot pick events
+        grid.querySelectorAll('input[data-name-idx]').forEach(inp => {
+          inp.addEventListener('input', (e) => {
+            const idx = Number(e.target.dataset.nameIdx);
+            this.setupDraft[idx].name = e.target.value;
+          });
+        });
+
+        grid.querySelectorAll('.robot-pick-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.audioManager.playClick();
+            const idx = Number(btn.dataset.pidx);
+            this.setupDraft[idx].robotId = btn.dataset.rid;
+            this.renderPlayerSetupGrid();
+          });
+        });
+      }
+
+      startNewAdventure() {
+        this.audioManager.playClick();
+        this.audioManager.startBGM();
+
+        const activeConfigs = [];
+        for (let i = 0; i < this.selectedPlayerCount; i++) {
+          activeConfigs.push({
+            name: this.setupDraft[i].name,
+            robotId: this.setupDraft[i].robotId,
+            isAI: false
+          });
+        }
+
+        // If 1 player and AI opponent enabled, add Astro-Bot AI
+        if (this.selectedPlayerCount === 1 && document.getElementById('chk-vs-ai').checked) {
+          const usedId = activeConfigs[0].robotId;
+          const aiRobot = this.playerManager.robotPresets.find(r => r.id !== usedId) || this.playerManager.robotPresets[1];
+          activeConfigs.push({
+            name: 'Astro-Bot AI',
+            robotId: aiRobot.id,
+            isAI: true
+          });
+        }
+
+        this.cardManager.shuffleNewDeck();
+        this.questionManager.resetSessionQuestions();
+        this.playerManager.setupPlayers(activeConfigs);
+        this.boardManager.setActiveTile(1);
+        this.cameraController.setPreset('iso');
+
+        document.getElementById('screen-player-setup').classList.add('hidden');
+        document.getElementById('screen-main-menu').classList.add('hidden');
+        document.getElementById('game-hud').classList.remove('hidden');
+        document.getElementById('hud-turn-banner').classList.remove('hidden');
+        document.getElementById('btn-back-menu').classList.remove('hidden');
+
+        this.gameActive = true;
+        this.isBusy = false;
+        this.logEvent('🚀 Petualangan dimulai! Semua robot berada di Petak 1 (Planet Biru).');
+        this.updateHUD();
+        this.saveGameState();
+      }
+
+      /* ------------------------------------------------------------------
+       * HUD & SIDEBAR RENDERING
+       * ------------------------------------------------------------------ */
+      updateHUD() {
+        const currentPlayer = this.playerManager.getCurrentPlayer();
+        if (!currentPlayer) return;
+
+        // Top Banner & Bottom Bar
+        document.getElementById('hud-turn-name').textContent = currentPlayer.name.toUpperCase();
+        document.getElementById('hud-turn-dot').style.backgroundColor = currentPlayer.preset.badgeColor;
+        document.getElementById('bottom-turn-label').textContent = `Giliran: ${currentPlayer.name}`;
+
+        // Deck Counter
+        const rem = this.cardManager.getRemainingCount();
+        document.getElementById('deck-remaining-badge').textContent = `Deck: ${rem}/8`;
+        document.getElementById('deck-count-pill').textContent = String(rem);
+
+        // Draw Button state
+        const drawBtn = document.getElementById('btn-draw-card');
+        drawBtn.disabled = this.isBusy || currentPlayer.isAI;
+
+        // Sidebar Players List
+        const listEl = document.getElementById('sidebar-players-list');
+        listEl.innerHTML = '';
+
+        this.playerManager.players.forEach((p, idx) => {
+          const isTurn = idx === this.playerManager.currentTurnIndex;
+          const b = p.starBonuses;
+
+          const item = document.createElement('div');
+          item.className = `p-2.5 rounded-xl border transition-all ${
+            isTurn
+              ? 'bg-gradient-to-r from-indigo-900/90 to-slate-900/95 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.3)]'
+              : 'bg-slate-900/65 border-slate-700/70 opacity-85'
+          }`;
+
+          item.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs text-slate-950 shrink-0"
+                  style="background:${p.preset.badgeColor}">
+                  🤖
+                </div>
+                <div class="truncate">
+                  <div class="font-orbitron font-bold text-xs text-white truncate">
+                    ${p.name} ${p.isAI ? '<span class="text-[9px] text-cyan-300">[AI]</span>' : ''}
+                  </div>
+                  <div class="text-[10px] text-cyan-200 font-semibold">
+                    📍 Petak <b class="text-yellow-300">${p.tile}</b>/100
+                  </div>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="font-orbitron font-black text-sm text-yellow-300">${p.score}</div>
+                <div class="text-[9px] text-slate-300 uppercase">Poin</div>
+              </div>
+            </div>
+
+            <!-- 3 Star Bonus Indicators per player -->
+            <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px]">
+              <span class="text-slate-300 font-semibold">Bonus 🌟:</span>
+              <div class="flex items-center gap-1">
+                <span title="Bonus +10 Poin" class="px-1.5 py-0.5 rounded font-bold ${
+                  b.points10 ? 'bg-amber-400/25 text-amber-200 border border-amber-400/50' : 'bg-slate-800 text-slate-500 line-through'
+                }">+10P</span>
+                <span title="Bonus 6 Langkah" class="px-1.5 py-0.5 rounded font-bold ${
+                  b.steps6 ? 'bg-cyan-400/25 text-cyan-200 border border-cyan-400/50' : 'bg-slate-800 text-slate-500 line-through'
+                }">+6L</span>
+                <span title="Bonus Acak Kartu 1x" class="px-1.5 py-0.5 rounded font-bold ${
+                  b.redraw1 ? 'bg-purple-400/25 text-purple-200 border border-purple-400/50' : 'bg-slate-800 text-slate-500 line-through'
+                }">1x🃏</span>
+              </div>
+            </div>
+          `;
+          listEl.appendChild(item);
+        });
+      }
+
+      /* ------------------------------------------------------------------
+       * CARD DRAWING, SHUFFLING, 3D FLIP & TURN EXECUTION
+       * ------------------------------------------------------------------ */
+      async handleDrawCardClick() {
+        if (this.isBusy || !this.gameActive) return;
+        const player = this.playerManager.getCurrentPlayer();
+        if (!player || player.isAI) return;
+        await this.executeCardDrawForPlayer(player, false);
+      }
+
+      async executeCardDrawForPlayer(player, excludeStar = false) {
+        this.isBusy = true;
+        this.updateHUD();
+
+        try {
+          // 1. Visual Deck Shuffle Animation
+          const deckEl = document.getElementById('visual-card-deck');
+          deckEl.classList.add('shuffling');
+          this.audioManager.playShuffle();
+          document.getElementById('bottom-status-text').textContent = 'Mengocok tumpukan Kartu Berburu Poin...';
+
+          await new Promise(r => setTimeout(r, 550));
+          deckEl.classList.remove('shuffling');
+
+          // 2. Draw card from 8-card cycle
+          const { card, reshuffled } = this.cardManager.drawCard(excludeStar);
+          if (reshuffled) {
+            this.logEvent('🔄 Seluruh 8 kartu telah terpakai. Tumpukan kartu dikocok ulang!');
+          }
+          this.updateHUD();
+
+          // 3. Show 3D Card Flip Modal
+          await this.show3DCardRevealModal(card);
+
+          // Update Last Drawn Card indicator on bottom HUD
+          const lastCardPill = document.getElementById('last-drawn-card-pill');
+          if (lastCardPill) {
+            lastCardPill.classList.remove('hidden');
+            lastCardPill.innerHTML = `<span>🃏 Hasil Kartu: <b>${card.label}</b></span>`;
+          }
+
+          // 4. Execute Card Effect
+          if (card.type === 'NUMBER') {
+            this.logEvent(`🃏 <b>${player.name}</b> mendapat <b>${card.label}</b> (+${card.value} langkah).`);
+            document.getElementById('bottom-status-text').innerHTML = `Kartu keluar: <b class="text-yellow-300">${card.label}</b> — Maju ${card.value} petak!`;
+            await this.movePlayerAndResolveTile(player, card.value);
+          } else if (card.type === 'ZONK') {
+            this.audioManager.playZonk();
+            player.mesh.userData.animState = 'DISAPPOINTED';
+            this.logEvent(`💥 <b>${player.name}</b> mendapat <b>KARTU ZONK!</b> Kesempatan bergerak terlewat.`);
+            document.getElementById('bottom-status-text').innerHTML = `Kartu keluar: <b class="text-rose-400">KARTU ZONK!</b>`;
+            this.showFloatingBanner('💥 ZONK!', 'ZONK! Kesempatan bergerak terlewat.', 2400);
+            await new Promise(r => setTimeout(r, 2200));
+            player.mesh.userData.animState = 'IDLE';
+          } else if (card.type === 'STAR') {
+            this.audioManager.playStarBonus();
+            document.getElementById('bottom-status-text').innerHTML = `Kartu keluar: <b class="text-yellow-300">KARTU BINTANG!</b>`;
+            await this.handleStarCardEffect(player);
+          }
+        } catch (err) {
+          console.error('Turn execution error:', err);
+          if (player && player.mesh) {
+            player.mesh.userData.animState = 'IDLE';
+          }
+        } finally {
+          document.getElementById('visual-card-deck').classList.remove('shuffling');
+          document.getElementById('modal-card-reveal').classList.add('hidden');
+        }
+
+        // Check if game won
+        if (!this.gameActive) {
+          this.isBusy = false;
+          return;
+        }
+
+        // 5. Advance to Next Player's Turn
+        this.playerManager.nextTurn();
+        const nextP = this.playerManager.getCurrentPlayer();
+        this.boardManager.setActiveTile(nextP.tile);
+        if (this.cameraController.followRobot) {
+          this.cameraController.focusOnPosition(nextP.mesh.position);
+        }
+
+        this.isBusy = false;
+        document.getElementById('bottom-status-text').innerHTML = 'Tekan <b>AMBIL KARTU</b> untuk melangkah!';
+        this.updateHUD();
+        this.saveGameState();
+
+        this.checkIfAITurn();
+      }
+
+      async show3DCardRevealModal(card) {
+        const modal = document.getElementById('modal-card-reveal');
+        const inner = document.getElementById('drawn-card-inner');
+        const backFace = document.getElementById('drawn-card-back');
+        const frontFace = document.getElementById('drawn-card-front');
+        const statusText = document.getElementById('card-modal-status');
+        const header = document.getElementById('card-front-header');
+        const icon = document.getElementById('card-front-icon');
+        const subtitle = document.getElementById('card-front-subtitle');
+        const desc = document.getElementById('card-front-desc');
+
+        try {
+          // Populate exact card data
+          header.textContent = card.label;
+          icon.textContent = card.icon;
+          desc.textContent = card.desc;
+
+          if (card.type === 'NUMBER') {
+            subtitle.textContent = `ANGKA ${card.value} • MAJU ${card.value} PETAK`;
+            icon.className = 'text-7xl sm:text-8xl font-orbitron font-black text-yellow-300 drop-shadow-[0_0_25px_rgba(0,240,255,0.9)]';
+          } else if (card.type === 'STAR') {
+            subtitle.textContent = 'BONUS SPESIAL BINTANG';
+            icon.className = 'text-7xl sm:text-8xl drop-shadow-[0_0_30px_rgba(255,215,0,0.95)]';
+          } else {
+            subtitle.textContent = 'GILIRAN TERLEWAT';
+            icon.className = 'text-7xl sm:text-8xl drop-shadow-[0_0_30px_rgba(244,63,94,0.95)]';
+          }
+
+          // Step 1: Show Card Back first (normal left-to-right text)
+          statusText.textContent = '✨ Membuka Kartu Berburu Poin...';
+          backFace.classList.remove('hidden');
+          frontFace.classList.add('hidden');
+          inner.style.transition = 'none';
+          inner.style.transform = 'translateY(120px) scale(0.5) rotateY(0deg)';
+          modal.classList.remove('hidden');
+
+          // Force reflow then rise to center
+          void inner.offsetWidth;
+          inner.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+          inner.style.transform = 'translateY(0px) scale(1) rotateY(0deg)';
+          await new Promise(r => setTimeout(r, 320));
+
+          // Step 2: Rotate 90 degrees edge-on, swap to Front Face, and rotate back to 0 degrees (never mirrored!)
+          this.audioManager.playCardFlip();
+          inner.style.transition = 'transform 0.22s ease-in';
+          inner.style.transform = 'translateY(0px) scale(1.05) rotateY(90deg)';
+          await new Promise(r => setTimeout(r, 220));
+
+          backFace.classList.add('hidden');
+          frontFace.classList.remove('hidden');
+          statusText.textContent = `🃏 HASIL KARTU: ${card.label}!`;
+
+          inner.style.transition = 'none';
+          inner.style.transform = 'translateY(0px) scale(1.05) rotateY(-90deg)';
+          void inner.offsetWidth;
+
+          inner.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+          inner.style.transform = 'translateY(0px) scale(1.06) rotateY(0deg)';
+
+          // Keep card visible so player clearly reads the drawn card
+          await new Promise(r => setTimeout(r, 1550));
+        } finally {
+          modal.classList.add('hidden');
+        }
+      }
+
+      /* ------------------------------------------------------------------
+       * STAR CARD BONUS LOGIC (Per-Player Inventory of 3 Bonuses)
+       * ------------------------------------------------------------------ */
+      async handleStarCardEffect(player) {
+        // Check if player still has any unused Star Bonus
+        if (!this.starBonusManager.hasAvailableBonus(player)) {
+          this.logEvent(`🌟 <b>${player.name}</b> sudah memakai ketiga Bonus Bintang! Mengambil kartu pengganti otomatis...`);
+          this.showFloatingBanner('🌟 Semua Bonus Terpakai!', 'Mengambil kartu angka/Zonk secara otomatis...', 2000);
+          await new Promise(r => setTimeout(r, 1800));
+          // Redraw automatically excluding Star Card so it's guaranteed Number 1-6 or Zonk
+          const { card } = this.cardManager.drawCard(true);
+          await this.show3DCardRevealModal(card);
+          const lastCardPill = document.getElementById('last-drawn-card-pill');
+          if (lastCardPill) {
+            lastCardPill.classList.remove('hidden');
+            lastCardPill.innerHTML = `<span>🃏 Hasil Kartu: <b>${card.label}</b></span>`;
+          }
+          if (card.type === 'NUMBER') {
+            await this.movePlayerAndResolveTile(player, card.value);
+          } else {
+            this.audioManager.playZonk();
+            this.showFloatingBanner('💥 ZONK!', 'ZONK! Kesempatan bergerak terlewat.', 2000);
+            await new Promise(r => setTimeout(r, 1900));
+          }
+          return;
+        }
+
+        // If AI Player, automatically pick an available bonus smartly
+        if (player.isAI) {
+          let chosen = null;
+          if (player.starBonuses.steps6) chosen = 'steps6';
+          else if (player.starBonuses.points10) chosen = 'points10';
+          else chosen = 'redraw1';
+          await this.applyChosenStarBonus(player, chosen);
+          return;
+        }
+
+        // Show 3 Star Bonus Modal for Human Player
+        const chosenBonus = await new Promise(resolve => {
+          const modal = document.getElementById('modal-star-bonus');
+          const b = player.starBonuses;
+
+          const btnPts = document.getElementById('btn-bonus-points');
+          const btnStp = document.getElementById('btn-bonus-steps');
+          const btnRed = document.getElementById('btn-bonus-redraw');
+
+          const badgePts = document.getElementById('badge-bonus-points');
+          const badgeStp = document.getElementById('badge-bonus-steps');
+          const badgeRed = document.getElementById('badge-bonus-redraw');
+
+          btnPts.disabled = !b.points10;
+          badgePts.textContent = b.points10 ? 'TERSEDIA' : 'SUDAH DIPAKAI';
+          badgePts.className = b.points10
+            ? 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950'
+            : 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-400';
+
+          btnStp.disabled = !b.steps6;
+          badgeStp.textContent = b.steps6 ? 'TERSEDIA' : 'SUDAH DIPAKAI';
+          badgeStp.className = b.steps6
+            ? 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950'
+            : 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-400';
+
+          btnRed.disabled = !b.redraw1;
+          badgeRed.textContent = b.redraw1 ? 'TERSEDIA' : 'SUDAH DIPAKAI';
+          badgeRed.className = b.redraw1
+            ? 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950'
+            : 'mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-400';
+
+          const cleanupAndResolve = (choice) => {
+            btnPts.onclick = null;
+            btnStp.onclick = null;
+            btnRed.onclick = null;
+            modal.classList.add('hidden');
+            resolve(choice);
+          };
+
+          btnPts.onclick = () => cleanupAndResolve('points10');
+          btnStp.onclick = () => cleanupAndResolve('steps6');
+          btnRed.onclick = () => cleanupAndResolve('redraw1');
+
+          modal.classList.remove('hidden');
+        });
+
+        await this.applyChosenStarBonus(player, chosenBonus);
+      }
+
+      async applyChosenStarBonus(player, bonusKey) {
+        this.starBonusManager.useBonus(player, bonusKey);
+        this.updateHUD();
+
+        if (bonusKey === 'points10') {
+          this.scoreManager.addPoints(player, 10, 'Bonus Bintang');
+          this.animationManager.spawnBurstParticles(player.mesh.position, 0xffd700, 35);
+          player.mesh.userData.animState = 'VICTORY';
+          this.logEvent(`💎 <b>${player.name}</b> memilih Bonus Bintang: <b>+10 POIN!</b>`);
+          this.showFloatingBanner('💎 BONUS +10 POIN!', `${player.name} mendapatkan 10 Poin tambahan!`, 2000);
+          this.updateHUD();
+          await new Promise(r => setTimeout(r, 1800));
+          player.mesh.userData.animState = 'IDLE';
+        } else if (bonusKey === 'steps6') {
+          this.logEvent(`🚀 <b>${player.name}</b> memilih Bonus Bintang: <b>MAJU 6 LANGKAH!</b>`);
+          this.showFloatingBanner('🚀 BONUS 6 LANGKAH!', `${player.name} melaju 6 petak ke depan!`, 1800);
+          await this.movePlayerAndResolveTile(player, 6);
+        } else if (bonusKey === 'redraw1') {
+          this.logEvent(`🃏 <b>${player.name}</b> memilih Bonus Bintang: <b>ACAK KARTU 1X!</b>`);
+          this.showFloatingBanner('🃏 ACAK KARTU TAMBAHAN!', 'Mengambil 1 kartu tambahan...', 1600);
+          await new Promise(r => setTimeout(r, 1400));
+
+          // Draw an extra card (if Star comes up and no bonuses left, excludeStar handles it)
+          const noMoreBonuses = !this.starBonusManager.hasAvailableBonus(player);
+          const { card } = this.cardManager.drawCard(noMoreBonuses);
+          await this.show3DCardRevealModal(card);
+
+          const lastCardPill = document.getElementById('last-drawn-card-pill');
+          if (lastCardPill) {
+            lastCardPill.classList.remove('hidden');
+            lastCardPill.innerHTML = `<span>🃏 Hasil Kartu: <b>${card.label}</b></span>`;
+          }
+
+          if (card.type === 'NUMBER') {
+            await this.movePlayerAndResolveTile(player, card.value);
+          } else if (card.type === 'ZONK') {
+            this.audioManager.playZonk();
+            this.showFloatingBanner('💥 ZONK!', 'ZONK! Kesempatan bergerak terlewat.', 2000);
+            await new Promise(r => setTimeout(r, 1900));
+          } else if (card.type === 'STAR') {
+            await this.handleStarCardEffect(player);
+          }
+        }
+      }
+
+      /* ------------------------------------------------------------------
+       * MOVEMENT, MATH QUESTION TILES, LADDERS, SNAKES & VICTORY CHECK
+       * ------------------------------------------------------------------ */
+      async movePlayerAndResolveTile(player, steps) {
+        const startTile = player.tile;
+        const targetSum = startTile + steps;
+        const willBounce = targetSum > 100;
+
+        await this.animationManager.animateStepByStep(player, steps);
+        this.playerManager.layoutRobotsOnTiles();
+        this.updateHUD();
+
+        // Check Victory: Player wins when landing EXACTLY on Tile 100!
+        if (player.tile === 100) {
+          this.logEvent(`🏆 <b>${player.name}</b> mendarat tepat di <b>Petak 100 (FINISH)</b> dan memenangkan petualangan!`);
+          this.showFloatingBanner('🏆 TEPAT DI PETAK 100!', `${player.name} berhasil mencapai garis FINISH!`, 2500);
+          await this.triggerVictory(player);
+          return;
+        }
+
+        if (willBounce) {
+          this.logEvent(`↩️ Langkah <b>${player.name}</b> melewati 100, memantul kembali ke <b>Petak ${player.tile}</b> (harus tepat di 100).`);
+          this.showFloatingBanner('↩️ MEMANTUL DARI PETAK 100!', `Harus tepat di Petak 100! Robot berada di Petak ${player.tile}.`, 2300);
+          await new Promise(r => setTimeout(r, 1200));
+        }
+
+        // 1. Check if landed on one of the 20 Math Question Tiles
+        if (this.questionManager.isQuestionTile(player.tile)) {
+          await this.presentMathQuestion(player);
+        }
+
+        // 2. Check if landed on a Laser Ladder Base
+        const ladder = this.snakeLadderManager.getLadderAt(player.tile);
+        if (ladder) {
+          this.logEvent(`⚡ <b>${player.name}</b> menaiki <b>${ladder.name}</b> dari petak ${ladder.from} ke ${ladder.to}!`);
+          this.showFloatingBanner(`⚡ ${ladder.name.toUpperCase()}!`, `Naik cepat dari Petak ${ladder.from} ➔ Petak ${ladder.to}!`, 2400);
+          const curve = this.boardManager.ladderCurves[ladder.from];
+          await this.animationManager.animateAlongCurve(player, curve, ladder.to, true);
+          this.playerManager.layoutRobotsOnTiles();
+          this.updateHUD();
+
+          if (player.tile === 100) {
+            await this.triggerVictory(player);
+            return;
+          }
+
+          // If destination tile is a Question Tile, trigger it too!
+          if (this.questionManager.isQuestionTile(player.tile)) {
+            await this.presentMathQuestion(player);
+          }
+        }
+
+        // 3. Check if landed on a Cosmic Serpent Head
+        const snake = this.snakeLadderManager.getSnakeAt(player.tile);
+        if (snake) {
+          this.logEvent(`🐍 <b>${player.name}</b> bertemu <b>${snake.name}</b>! Meluncur dari petak ${snake.from} ke ${snake.to}.`);
+          this.showFloatingBanner(`🐍 ${snake.name.toUpperCase()}!`, `Meluncur turun dari Petak ${snake.from} ➔ Petak ${snake.to}!`, 2400);
+          const curve = this.boardManager.snakeCurves[snake.from];
+          await this.animationManager.animateAlongCurve(player, curve, snake.to, false);
+          this.playerManager.layoutRobotsOnTiles();
+          this.updateHUD();
+
+          if (this.questionManager.isQuestionTile(player.tile)) {
+            await this.presentMathQuestion(player);
+          }
+        }
+      }
+
+      async presentMathQuestion(player) {
+        const qObj = this.questionManager.getNextQuestion();
+        const modal = document.getElementById('modal-math-question');
+        const tileBadge = document.getElementById('math-tile-badge');
+        const qText = document.getElementById('math-question-text');
+        const optGrid = document.getElementById('math-options-grid');
+        const feedbackBox = document.getElementById('math-feedback-box');
+
+        tileBadge.textContent = `PETAK #${player.tile} • KUIS MATEMATIKA SD`;
+        qText.textContent = qObj.q;
+        feedbackBox.classList.add('hidden');
+        optGrid.innerHTML = '';
+
+        const labels = ['A', 'B', 'C'];
+
+        // If AI player, simulate thinking and answering
+        if (player.isAI) {
+          modal.classList.remove('hidden');
+          qObj.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.disabled = true;
+            btn.className = 'w-full py-3.5 px-5 rounded-2xl bg-slate-900 border-2 border-cyan-400/50 font-orbitron font-bold text-lg text-white flex items-center justify-between';
+            btn.innerHTML = `<span class="text-cyan-300">${labels[idx]}.</span> <span>${opt}</span> <span></span>`;
+            optGrid.appendChild(btn);
+          });
+
+          await new Promise(r => setTimeout(r, 1300));
+          const aiCorrect = Math.random() < 0.78;
+          const chosenAns = aiCorrect ? qObj.answer : qObj.options.find(o => o !== qObj.answer);
+          await this.resolveMathAnswer(player, chosenAns === qObj.answer, qObj.answer);
+          modal.classList.add('hidden');
+          return;
+        }
+
+        // Human Player Interactive Question
+        await new Promise(resolve => {
+          qObj.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-cosmic w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 hover:from-cyan-900 hover:to-blue-900 border-2 border-cyan-400 font-orbitron font-black text-xl text-white flex items-center justify-between shadow-lg';
+            btn.innerHTML = `
+              <span class="w-8 h-8 rounded-lg bg-cyan-400 text-slate-950 flex items-center justify-center text-sm font-black">${labels[idx]}</span>
+              <span class="text-2xl">${opt}</span>
+              <span class="text-xs text-cyan-300">PILIH ▶</span>
+            `;
+            btn.onclick = async () => {
+              this.audioManager.playClick();
+              Array.from(optGrid.children).forEach(b => (b.disabled = true));
+              const isCorrect = opt === qObj.answer;
+              await this.resolveMathAnswer(player, isCorrect, qObj.answer);
+              modal.classList.add('hidden');
+              resolve();
+            };
+            optGrid.appendChild(btn);
+          });
+
+          modal.classList.remove('hidden');
+        });
+      }
+
+      async resolveMathAnswer(player, isCorrect, correctAnswer) {
+        const feedbackBox = document.getElementById('math-feedback-box');
+        feedbackBox.classList.remove('hidden');
+
+        if (isCorrect) {
+          this.audioManager.playCorrect();
+          this.scoreManager.addPoints(player, 5, `Kuis Petak ${player.tile}`);
+          player.mesh.userData.animState = 'VICTORY';
+          this.animationManager.spawnBurstParticles(player.mesh.position, 0x00ff88, 35);
+
+          feedbackBox.className = 'mt-4 p-3 rounded-2xl font-orbitron font-black text-base bg-emerald-500/30 border-2 border-emerald-400 text-emerald-200';
+          feedbackBox.innerHTML = '🌟 CORRECT! Jawaban Benar! +5 POIN!';
+          this.logEvent(`✅ <b>${player.name}</b> menjawab benar di Petak ${player.tile} (<b>+5 Poin</b>).`);
+        } else {
+          this.audioManager.playWrong();
+          player.mesh.userData.animState = 'DISAPPOINTED';
+
+          feedbackBox.className = 'mt-4 p-3 rounded-2xl font-orbitron font-black text-base bg-rose-500/30 border-2 border-rose-400 text-rose-200';
+          feedbackBox.innerHTML = `❌ WRONG! Jawaban yang tepat: ${correctAnswer} (+0 Poin)`;
+          this.logEvent(`❌ <b>${player.name}</b> belum tepat menjawab di Petak ${player.tile} (+0 Poin).`);
+        }
+
+        this.updateHUD();
+        await new Promise(r => setTimeout(r, 1700));
+        player.mesh.userData.animState = 'IDLE';
+      }
+
+      async checkIfAITurn() {
+        if (!this.gameActive) return;
+        const current = this.playerManager.getCurrentPlayer();
+        if (current && current.isAI) {
+          this.isBusy = true;
+          this.updateHUD();
+          document.getElementById('bottom-status-text').textContent = `🤖 ${current.name} sedang mengambil kartu...`;
+          await new Promise(r => setTimeout(r, 1000));
+          await this.executeCardDrawForPlayer(current, false);
+        }
+      }
+
+      async triggerVictory(winner) {
+        this.gameActive = false;
+        localStorage.removeItem('GALAXY_ADVENTURE_SAVE_V1');
+
+        this.audioManager.playVictory();
+        winner.mesh.userData.animState = 'VICTORY';
+        this.cameraController.followRobot = true;
+        this.cameraController.focusOnPosition(winner.mesh.position);
+
+        // Space Fireworks burst
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            this.animationManager.spawnBurstParticles(
+              winner.mesh.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 1.5, (Math.random() - 0.5) * 3)),
+              i % 2 === 0 ? 0xffd700 : 0x00f0ff,
+              40
+            );
+          }, i * 350);
+        }
+
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Populate Victory Modal
+        document.getElementById('victory-winner-name').textContent = `🏆 ${winner.name.toUpperCase()}`;
+        const lbEl = document.getElementById('victory-leaderboard');
+        lbEl.innerHTML = '';
+
+        // Sort players: Winner (Tile 100) first, then by tile position & points
+        const ranked = [...this.playerManager.players].sort((a, b) => {
+          if (a.id === winner.id) return -1;
+          if (b.id === winner.id) return 1;
+          if (b.tile !== a.tile) return b.tile - a.tile;
+          return b.score - a.score;
+        });
+
+        ranked.forEach((p, idx) => {
+          const usedBonuses = Object.values(p.starBonuses).filter(v => !v).length;
+          const row = document.createElement('div');
+          row.className = `p-3 rounded-xl border flex items-center justify-between ${
+            idx === 0
+              ? 'bg-amber-500/20 border-yellow-400 text-white'
+              : 'bg-slate-900/80 border-slate-700 text-slate-200'
+          }`;
+          row.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="font-orbitron font-black text-lg ${idx === 0 ? 'text-yellow-300' : 'text-cyan-300'}">#${idx + 1}</span>
+              <div>
+                <div class="font-orbitron font-bold text-sm">${p.name} ${idx === 0 ? '👑' : ''}</div>
+                <div class="text-[11px] text-slate-300">Posisi Akhir: Petak ${p.tile} • Bonus Bintang Dipakai: ${usedBonuses}/3</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-orbitron font-black text-base text-yellow-300">${p.score} POIN</div>
+            </div>
+          `;
+          lbEl.appendChild(row);
+        });
+
+        document.getElementById('modal-victory').classList.remove('hidden');
+      }
+
+      /* ------------------------------------------------------------------
+       * MAIN RENDER LOOP
+       * ------------------------------------------------------------------ */
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        const elapsed = this.clock.getElapsedTime();
+
+        this.boardManager.updateEnvironment(elapsed);
+        this.animationManager.updateAll(this.playerManager.players, elapsed);
+        this.cameraController.update();
+
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    // Start the game on window load
+    window.onload = function () {
+      window.galaxyGame = new GameEngine();
+    };
+  </script>
+</body>
+</html>
